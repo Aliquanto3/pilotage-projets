@@ -75,11 +75,16 @@ def poste(tmp_path):
     return depot, github, claude
 
 
+# Valeurs neutres passées au script : sans elles, il écrirait celles de son auteur.
+IDENTITE = ("-ProprietaireGitHub", "proprio-test", "-DepotDonnees", "proprio-test/donnees-test",
+            "-Utilisateur", "Joël Test")
+
+
 def _sync(depot: Path, sens: str, github: Path, claude: Path, *options: str, env=None):
     return subprocess.run(
         ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
          str(depot / "sync.ps1"), sens, "-RacineGitHub", str(github),
-         "-DossierClaude", str(claude), "-SansGit", "-SansTache", *options],
+         "-DossierClaude", str(claude), "-SansGit", "-SansTache", *IDENTITE, *options],
         capture_output=True, timeout=120, env=env,
     )
 
@@ -119,6 +124,9 @@ def test_restaurer_deux_fois_meme_hash_puis_sauver_sans_pilotage(poste):
         "pythonw": python[: -len("python.exe")] + "pythonw.exe",
         "racine_github": github.as_posix(),
         "port": 47615,
+        "proprietaire_github": "proprio-test",
+        "depot_donnees": "proprio-test/donnees-test",
+        "utilisateur": "Joël Test",
     }
     empreinte = _hash(reglages)
     resultat = _sync(depot, "restaurer", github, claude, "-SansUv")
