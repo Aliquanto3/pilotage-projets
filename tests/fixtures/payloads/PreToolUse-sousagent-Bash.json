@@ -1,0 +1,19 @@
+{
+  "session_id": "session-0007",
+  "transcript_path": "{{HOME}}\\.claude\\projects\\{{SLUG_PROJET}}\\00000000-0000-4000-8000-000000000000.jsonl",
+  "cwd": "{{RACINE_GITHUB}}\\_sandbox\\capture-payloads",
+  "prompt_id": "prompt-0007",
+  "permission_mode": "default",
+  "agent_id": "agent-0002",
+  "agent_type": "general-purpose",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "echo FACTICE",
+    "description": "DESCRIPTION FACTICE"
+  },
+  "tool_use_id": "toolu-0005"
+}

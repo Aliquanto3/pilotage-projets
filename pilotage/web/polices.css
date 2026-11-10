@@ -1,0 +1,29 @@
+/* Polices de la charte, servies par le dépôt (aucun CDN). Licences : polices/OFL-*.txt. */
+@font-face {
+  font-family: Sora;
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("polices/sora-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("polices/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: 'Atkinson Hyperlegible';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("polices/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("polices/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+}

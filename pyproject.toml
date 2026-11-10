@@ -1,0 +1,34 @@
+[project]
+name = "pilotage-projets"
+version = "0.3.0"
+description = "Tableau de bord local : projets de Documents/GitHub et sessions Claude Code sur plusieurs PC."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Aliquanto3" }]
+requires-python = ">=3.14,<3.15"
+dependencies = []
+
+[dependency-groups]
+# PyYAML : outils (scan, sync, serveur) seulement, jamais hooks ni noyau.
+outils = [
+    "pyyaml==6.0.3",
+]
+dev = [
+    "pytest==9.2.0",
+    "ruff==0.17.4",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

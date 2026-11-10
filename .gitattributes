@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.woff2 binary
+*.ttf binary
+_bmad-output/implementation-artifacts/run-autonome.md merge=union
+_bmad-output/implementation-artifacts/sprint-status.yaml merge=union

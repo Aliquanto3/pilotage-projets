@@ -1,0 +1,17 @@
+{
+  "session_id": "session-0005",
+  "transcript_path": "{{HOME}}\\.claude\\projects\\{{SLUG_PROJET}}\\00000000-0000-4000-8000-000000000000.jsonl",
+  "cwd": "{{RACINE_GITHUB}}\\_sandbox\\capture-payloads",
+  "prompt_id": "prompt-0005",
+  "permission_mode": "default",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "{{RACINE_GITHUB}}\\fictif\\fichier.txt",
+    "content": "TEXTE FACTICE"
+  },
+  "tool_use_id": "toolu-0003"
+}

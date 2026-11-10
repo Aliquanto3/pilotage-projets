@@ -1,0 +1,7 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "{{HOME}}\\.claude\\projects\\{{SLUG_PROJET}}\\00000000-0000-4000-8000-000000000000.jsonl",
+  "cwd": "{{RACINE_GITHUB}}\\_sandbox\\capture-payloads",
+  "hook_event_name": "SessionStart",
+  "source": "startup"
+}

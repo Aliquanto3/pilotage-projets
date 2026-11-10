@@ -1,0 +1,9 @@
+{
+  "session_id": "session-0003",
+  "transcript_path": "{{HOME}}\\.claude\\projects\\{{SLUG_PROJET}}\\00000000-0000-4000-8000-000000000000.jsonl",
+  "cwd": "{{RACINE_GITHUB}}\\_sandbox\\capture-payloads",
+  "prompt_id": "prompt-0002",
+  "agent_id": "agent-0001",
+  "agent_type": "general-purpose",
+  "hook_event_name": "SubagentStart"
+}

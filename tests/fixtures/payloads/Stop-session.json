@@ -1,0 +1,15 @@
+{
+  "session_id": "session-0002",
+  "transcript_path": "{{HOME}}\\.claude\\projects\\{{SLUG_PROJET}}\\00000000-0000-4000-8000-000000000000.jsonl",
+  "cwd": "{{RACINE_GITHUB}}\\_sandbox\\capture-payloads",
+  "prompt_id": "prompt-0001",
+  "permission_mode": "default",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "TEXTE FACTICE (message assistant)",
+  "background_tasks": [],
+  "session_crons": []
+}

@@ -1,0 +1,18 @@
+{
+  "session_id": "session-0003",
+  "transcript_path": "{{HOME}}\\.claude\\projects\\{{SLUG_PROJET}}\\00000000-0000-4000-8000-000000000000.jsonl",
+  "cwd": "{{RACINE_GITHUB}}\\_sandbox\\capture-payloads",
+  "prompt_id": "prompt-0002",
+  "permission_mode": "default",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "DESCRIPTION FACTICE",
+    "prompt": "TEXTE FACTICE (prompt)",
+    "subagent_type": "general-purpose"
+  },
+  "tool_use_id": "toolu-0001"
+}

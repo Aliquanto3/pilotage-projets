@@ -1,0 +1,55 @@
+/* Généré par generer.py depuis charte.tokens.json — ne pas modifier (version 2.1.0). Styles minimaux d'éléments ; charger après charte.css. */
+
+body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--texte);
+  font-family: var(--police-texte);
+  font-size: var(--taille-base);
+  line-height: 1.5;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--police-titres);
+  font-weight: var(--graisse-titres);
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: var(--taille-titre-1);
+}
+
+h2 {
+  font-size: var(--taille-titre-2);
+}
+
+h3 {
+  font-size: var(--taille-titre-3);
+}
+
+h4 {
+  font-size: var(--taille-titre-4);
+}
+
+a {
+  color: var(--primaire);
+  text-decoration: underline;
+}
+
+a:hover {
+  color: var(--primaire-vif);
+}
+
+:focus-visible {
+  outline: var(--focus-largeur) solid var(--focus);
+  outline-offset: var(--focus-decalage);
+}
+
+code, pre {
+  font-family: var(--police-code);
+  background: var(--surface-alt);
+}
+
+::selection {
+  background: var(--primaire-doux);
+}

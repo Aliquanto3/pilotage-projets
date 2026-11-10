@@ -1,0 +1,929 @@
+/* Styles de l'appli : uniquement des rôles de la charte (var(--…)), aucune couleur en dur. */
+
+* {
+  box-sizing: border-box;
+}
+
+.masque {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Barre du haut (UX-DR4) */
+.barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacement-2) var(--espacement-4);
+  min-height: 56px;
+  padding: var(--espacement-2) var(--espacement-4);
+  background: var(--surface);
+  border-bottom: var(--trait-largeur) solid var(--trait);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--espacement-2);
+}
+
+.logo .titre {
+  margin: 0;
+  font-size: var(--taille-grand);
+}
+
+.picto-fond {
+  fill: var(--primaire);
+}
+
+.picto-traits {
+  fill: none;
+  stroke: var(--sur-primaire);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.picto-point {
+  fill: var(--accent);
+}
+
+.onglets {
+  display: flex;
+  gap: var(--espacement-4);
+}
+
+.onglet {
+  min-height: 24px;
+  padding: var(--espacement-1) 0;
+  font: var(--taille-base) var(--police-texte);
+  color: var(--texte-attenue);
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.onglet[aria-current="page"] {
+  color: var(--texte);
+  border-bottom-color: var(--primaire);
+}
+
+.droite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacement-2);
+  margin-left: auto;
+}
+
+.etat {
+  margin: 0;
+  font-size: var(--taille-petit);
+  color: var(--texte-attenue);
+}
+
+.fraicheur {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacement-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pc {
+  padding: 2px var(--espacement-2);
+  font-size: var(--taille-legende);
+  color: var(--texte-attenue);
+  border: var(--trait-largeur) solid var(--trait);
+  border-radius: var(--rayon-petit);
+}
+
+.pc.vieux {
+  color: var(--alerte-texte);
+  border-color: var(--alerte);
+}
+
+/* Boutons */
+.btn2 {
+  min-height: 32px;
+  padding: 6px 14px;
+  font: var(--taille-petit) var(--police-texte);
+  color: var(--texte);
+  background: var(--surface);
+  border: var(--trait-largeur) solid var(--trait-fort);
+  border-radius: var(--rayon-moyen);
+  cursor: pointer;
+}
+
+/* Champs et listes de choix (charte 2.1) : contour fort actif, trait inactif. */
+input,
+select,
+textarea {
+  color: var(--texte);
+  background: var(--surface);
+  border: var(--trait-largeur) solid var(--trait-fort);
+  border-radius: var(--rayon-petit);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled,
+.btn2:disabled {
+  border-color: var(--trait);
+}
+
+.btn1 {
+  min-height: 32px;
+  padding: var(--espacement-2) var(--espacement-4);
+  font: var(--graisse-titres) var(--taille-petit) var(--police-texte);
+  color: var(--sur-bouton);
+  background: var(--bouton);
+  border: 0;
+  border-radius: var(--rayon-moyen);
+  cursor: pointer;
+}
+
+.btn1:hover {
+  background: var(--bouton-survol);
+}
+
+.btn-lien {
+  min-height: 24px;
+  padding: 0 var(--espacement-1);
+  font: var(--taille-petit) var(--police-texte);
+  color: var(--texte);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+[aria-disabled="true"] {
+  color: var(--texte-attenue);
+  border-color: var(--trait);
+  cursor: not-allowed;
+}
+
+/* Bandeaux (UX-DR16) */
+.bandeaux {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacement-2);
+  padding: var(--espacement-2) var(--espacement-4) 0;
+}
+
+.bandeau {
+  padding: var(--espacement-2) var(--espacement-4);
+  border-radius: var(--rayon-moyen);
+  border-left: 4px solid var(--alerte);
+  background: var(--alerte-doux);
+}
+
+.bandeau-erreur {
+  border-left-color: var(--erreur);
+  background: var(--erreur-doux);
+}
+
+.bandeau-tete {
+  display: flex;
+  align-items: center;
+  gap: var(--espacement-2);
+}
+
+.bandeau-type {
+  font-weight: var(--graisse-titres);
+  font-size: var(--taille-petit);
+  color: var(--alerte-texte);
+}
+
+.bandeau-erreur .bandeau-type {
+  color: var(--erreur);
+}
+
+.bandeau-texte {
+  margin: var(--espacement-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+/* Contenu */
+.contenu {
+  padding: var(--espacement-4);
+}
+
+.neutre {
+  color: var(--texte-attenue);
+}
+
+/* Écrans sans données (clé perdue, session remplacée) */
+.ecran-seul {
+  max-width: 40rem;
+  margin: var(--espacement-7) auto;
+  padding: 0 var(--espacement-4);
+}
+
+.ecran-titre {
+  font-size: var(--taille-titre-4);
+}
+
+.bloc-commande {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacement-3);
+  padding: var(--espacement-4);
+  background: var(--encre-pleine);
+  border-radius: var(--rayon-grand);
+}
+
+.commande {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--police-code);
+  color: var(--sur-encre);
+  background: none;
+}
+
+.consigne {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--taille-petit);
+  color: var(--sur-encre-attenue);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn1,
+  .btn2 {
+    transition: background-color 150ms;
+  }
+}
+
+/* Accueil kanban (story 4.5). Aucune troncature : le texte entier s'affiche et passe à la ligne. */
+.kanban {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacement-4);
+  align-items: start;
+}
+
+.colonne {
+  min-width: 0;
+  padding: var(--espacement-3);
+  background: var(--surface-alt);
+  border: var(--trait-largeur) solid var(--trait);
+  border-radius: var(--rayon-grand);
+}
+
+/* Tuile chiffrée (story 4.11, UX-DR8) : non interactive, elle ne flotte pas. */
+.tuile-colonne {
+  display: flex;
+  align-items: center;
+  gap: var(--espacement-3);
+  margin-bottom: var(--espacement-3);
+  padding: var(--espacement-3) var(--espacement-4);
+  background: var(--surface);
+  border-radius: var(--rayon-moyen);
+}
+
+.chiffre-tuile {
+  flex: none;
+  font-family: var(--police-titres);
+  font-size: calc(var(--taille-titre-1) - var(--espacement-2));
+  font-weight: var(--graisse-titres);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.chiffre-attend-utilisateur { color: var(--accent-texte); }
+.chiffre-a-relancer { color: var(--alerte-texte); }
+.chiffre-tourne { color: var(--succes); }
+.chiffre-rien-a-faire { color: var(--texte); }
+.chiffre-tuile.chiffre-zero { color: var(--texte-attenue); }
+
+.tuile-texte {
+  min-width: 0;
+}
+
+.colonne-titre {
+  display: flex;
+  align-items: center;
+  gap: var(--espacement-2);
+  margin: 0;
+  font-family: var(--police-titres);
+  font-size: var(--taille-grand);
+  font-weight: var(--graisse-titres);
+  overflow-wrap: anywhere;
+}
+
+.tuile-detail {
+  margin: var(--espacement-1) 0 0;
+  font-size: var(--taille-petit);
+  color: var(--texte-attenue);
+  overflow-wrap: anywhere;
+}
+
+.icone-action,
+.icone-type,
+.icone-sablier,
+.icone-motif {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icone-action {
+  width: 20px;
+  height: 20px;
+}
+
+.icone-attend-utilisateur { color: var(--accent-texte); }
+.icone-a-relancer { color: var(--alerte-texte); }
+.icone-tourne { color: var(--succes); }
+.icone-rien-a-faire { color: var(--neutre); }
+
+.vide,
+.aucun-projet {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cartes,
+.etiquettes,
+.compteur-types {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cartes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacement-3);
+}
+
+.carte,
+.ligne-rien {
+  min-width: 0;
+  padding: var(--espacement-3);
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border: var(--trait-largeur) solid var(--trait);
+  border-radius: var(--rayon-moyen);
+}
+
+/* Cartes Attend et Relancer : « Reprendre » (story 5.5) a sa place réservée à droite de la ligne
+   du nom ; il vient en dernier dans le DOM. */
+.carte-attend,
+.carte-relancer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--espacement-3);
+}
+
+.carte-attend > *,
+.carte-relancer > * {
+  grid-column: 1;
+}
+
+.carte-attend > .carte-reprise,
+.carte-relancer > .carte-reprise {
+  grid-column: 2;
+  grid-row: 1;
+  min-inline-size: calc(var(--espacement-8) + var(--espacement-6));
+}
+
+.carte-relancer > .carte-reprise {
+  grid-row: 1 / span 3;
+  align-self: center;
+}
+
+.carte-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--espacement-2);
+  min-width: 0;
+}
+
+/* Survol et focus (DESIGN § Elevation & Depth) : halo, soulèvement de 2 px en 200 ms ; la zone de
+   survol déborde de 3 px sous la carte. */
+.carte-attend,
+.carte-relancer,
+.carte-tourne {
+  position: relative;
+}
+
+.carte-attend::after,
+.carte-relancer::after,
+.carte-tourne::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -3px;
+  block-size: 3px;
+}
+
+.carte-attend:hover,
+.carte-attend:focus-within,
+.carte-relancer:hover,
+.carte-relancer:focus-within,
+.carte-tourne:hover,
+.carte-tourne:focus-within {
+  box-shadow: var(--halo);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .carte-attend,
+  .carte-relancer,
+  .carte-tourne {
+    transition: box-shadow 200ms, transform 200ms;
+  }
+
+  .carte-attend:hover,
+  .carte-attend:focus-within,
+  .carte-relancer:hover,
+  .carte-relancer:focus-within,
+  .carte-tourne:hover,
+  .carte-tourne:focus-within {
+    transform: translateY(-2px);
+  }
+}
+
+.ligne-rien {
+  padding: var(--espacement-2) var(--espacement-3);
+  border-color: transparent;
+}
+
+.carte-attend { border-left: 4px solid var(--accent); }
+.carte-relancer { border-left: 4px solid var(--alerte); }
+
+.carte-nom {
+  margin: 0;
+  font-family: var(--police-titres);
+  font-size: var(--taille-base);
+  font-weight: var(--graisse-titres);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.nom-projet {
+  font: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.quoi,
+.raison,
+.meta {
+  margin: var(--espacement-2) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.quoi {
+  white-space: pre-wrap;
+}
+
+.raison,
+.meta {
+  font-size: var(--taille-petit);
+  color: var(--texte-attenue);
+}
+
+/* Attente vieillissante : sablier et « depuis … » en or gras ; la durée est écrite en texte. */
+.depuis-vieillissante {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacement-1);
+  font-weight: 700;
+  color: var(--accent-texte);
+}
+
+.icone-sablier,
+.icone-motif {
+  width: 14px;
+  height: 14px;
+}
+
+.motif {
+  display: flex;
+  align-items: center;
+  gap: var(--espacement-1);
+  margin-top: var(--espacement-1);
+}
+
+.icone-motif {
+  color: var(--neutre);
+}
+
+.etiquettes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacement-1);
+  margin-top: var(--espacement-2);
+}
+
+.etiquette {
+  display: inline-block;
+  padding: 2px var(--espacement-2);
+  font-size: var(--taille-legende);
+  color: var(--texte-attenue);
+  overflow-wrap: anywhere;
+  border: var(--trait-largeur) solid var(--trait);
+  border-radius: var(--rayon-petit);
+}
+
+.compteur-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacement-2);
+  margin-bottom: var(--espacement-3);
+  padding: 0 var(--espacement-1);
+}
+
+.compteur-types li {
+  display: flex;
+  align-items: center;
+  gap: var(--espacement-1);
+  font-size: var(--taille-legende);
+}
+
+.pastille-type {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacement-1);
+  margin-top: var(--espacement-2);
+  padding: 2px var(--espacement-2);
+  font-size: var(--taille-legende);
+  font-weight: var(--graisse-titres);
+  color: var(--texte);
+  border-radius: var(--rayon-pilule);
+}
+
+.compteur-types .pastille-type {
+  margin-top: 0;
+}
+
+.icone-type {
+  width: 14px;
+  height: 14px;
+}
+
+.type-choix { background: color-mix(in srgb, var(--cat-1) 13%, var(--surface)); }
+.type-choix .icone-type { color: var(--cat-1); }
+.type-test { background: color-mix(in srgb, var(--cat-6) 13%, var(--surface)); }
+.type-test .icone-type { color: var(--cat-6); }
+.type-donnees { background: color-mix(in srgb, var(--cat-4) 13%, var(--surface)); }
+.type-donnees .icone-type { color: var(--cat-4); }
+.type-acces { background: color-mix(in srgb, var(--cat-8) 13%, var(--surface)); }
+.type-acces .icone-type { color: var(--cat-8); }
+.type-a-qualifier {
+  background: var(--surface-alt);
+  border: var(--trait-largeur) solid var(--trait);
+}
+.type-a-qualifier .icone-type { color: var(--neutre); }
+
+/* Tête « Coup d'œil » (story 4.10) : synthèse et bloc des stables, barre de répartition, aides.
+   Rien ne flotte ni ne s'anime ; aucune troncature. */
+.tete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacement-3);
+  margin-bottom: var(--espacement-4);
+}
+
+.tete-haut {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacement-2);
+}
+
+.synthese {
+  max-width: 62ch;
+  margin: 0;
+  font-family: var(--police-titres);
+  font-size: var(--taille-titre-4);
+  font-weight: var(--graisse-titres);
+  line-height: 1.4;
+  color: var(--texte);
+  overflow-wrap: anywhere;
+}
+
+.synthese-nom {
+  color: var(--accent-texte);
+}
+
+.bloc-stables p {
+  margin: 0;
+  font-size: var(--taille-petit);
+  color: var(--texte-attenue);
+  overflow-wrap: anywhere;
+}
+
+.stables-chiffre {
+  font-family: var(--police-titres);
+  font-size: var(--taille-titre-3);
+  font-weight: var(--graisse-titres);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--texte);
+}
+
+.repartition:empty {
+  display: none;
+}
+
+/* Segments : largeur en % (attribut width), flex-shrink rend les 4 px d'écart au prorata. */
+.barre-repartition {
+  display: flex;
+  gap: var(--espacement-1);
+  height: 16px;
+}
+
+.segment {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 16px;
+  box-sizing: border-box;
+  border-radius: var(--rayon-pilule);
+}
+
+.segment-attend { background: var(--accent); }
+.segment-relancer { background: var(--alerte-texte); }
+.segment-tourne { background: var(--succes); }
+.segment-stable { background: var(--neutre); }
+.segment-pause {
+  background: transparent;
+  border: 2px solid var(--neutre);
+}
+.segment-a-classer { background: var(--trait-fort); }
+
+.legende-repartition {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacement-1) var(--espacement-4);
+  margin: var(--espacement-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--taille-petit);
+  color: var(--texte-attenue);
+}
+
+.legende-repartition li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacement-1);
+}
+
+.icone-groupe {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+.groupe-attend { color: var(--accent); }
+.groupe-relancer { color: var(--alerte-texte); }
+.groupe-tourne { color: var(--succes); }
+.groupe-stable,
+.groupe-pause,
+.groupe-a-classer { color: var(--neutre); }
+
+.groupe-relancer,
+.groupe-stable,
+.groupe-pause,
+.groupe-a-classer {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.groupe-a-classer {
+  fill: currentColor;
+}
+
+/* Contraste élevé de Windows : segments pleins en CanvasText, pause en contour CanvasText. */
+@media (forced-colors: active) {
+  .segment {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+
+  .segment-pause {
+    background: Canvas;
+    border-color: CanvasText;
+  }
+
+  .icone-groupe {
+    forced-color-adjust: auto;
+  }
+}
+
+/* Chargement lent : espaces vides de hauteur fixe, sans animation. */
+.reserve-synthese {
+  height: calc(2 * 1.4 * var(--taille-titre-4));
+}
+
+.reserve-barre {
+  height: calc(16px + var(--espacement-2) + 1.5 * var(--taille-petit));
+}
+
+.aides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacement-3);
+  align-items: start;
+}
+
+.aide {
+  min-width: 0;
+  background: var(--surface);
+  border: var(--trait-largeur) solid var(--trait);
+  border-radius: var(--rayon-grand);
+}
+
+.aide-resume {
+  display: flex;
+  align-items: center;
+  gap: var(--espacement-2);
+  min-height: 48px;
+  padding: 0 var(--espacement-4);
+  box-sizing: border-box;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--police-titres);
+  font-size: var(--taille-base);
+  font-weight: var(--graisse-titres);
+  line-height: 1.3;
+  border-radius: var(--rayon-grand);
+}
+
+.aide-resume::-webkit-details-marker {
+  display: none;
+}
+
+.aide-titre {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.icone-aide {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--primaire);
+}
+
+.chevron-aide {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--texte-attenue);
+}
+
+.aide[open] .chevron-aide {
+  transform: rotate(180deg);
+}
+
+.aide-corps {
+  padding: 0 var(--espacement-4) var(--espacement-4);
+  font-size: var(--taille-petit);
+  color: var(--texte-attenue);
+  overflow-wrap: anywhere;
+}
+
+.aide-corps p {
+  margin: 0 0 var(--espacement-2);
+}
+
+.aide-criteres {
+  margin: 0 0 var(--espacement-2);
+  color: var(--texte);
+}
+
+.aide-types-liste {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espacement-2) var(--espacement-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aide-types-liste li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espacement-1);
+}
+
+.aide-types-liste .pastille-type {
+  margin-top: 0;
+}
+
+/* Côte à côte : 1 : 1 de 760 à 1279 px, 3 : 2 dès 1280 px ; empilées en dessous. Synthèse et
+   bloc des stables sur une rangée dès 760 px, le bloc aligné en bas et à droite. */
+@media (min-width: 47.5em) {
+  .tete-haut {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--espacement-4);
+  }
+
+  .bloc-stables {
+    flex: none;
+    text-align: right;
+  }
+
+  .aides {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Types sur cinq colonnes seulement dès 1280 px : à 1 : 1, une aide fait ~350 px de large. */
+@media (min-width: 80em) {
+  .aides {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .aide-types-liste {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+/* Grille responsive (story 4.6, UX-DR9). Seuils en em : ils suivent le zoom du navigateur, donc
+   1280 px à 200 % (640 px utiles) tombe sous 47,5 em et donne une colonne. */
+@media (min-width: 47.5em) {
+  .kanban {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 80em) {
+  .kanban {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 3fr) minmax(0, 2fr) minmax(0, 2fr);
+  }
+}
+
+/* « Rien à faire » (story 4.11) : sous 760 px, liste repliée derrière le bouton « Afficher » ;
+   au-delà, le bouton est masqué et la liste toujours visible, quel que soit son état. */
+.repli-bouton {
+  margin-bottom: var(--espacement-3);
+}
+
+/* Le masquage ne vaut que sous 760 px (complément exact du palier) : il ne dépend pas de l'ordre
+   des règles. */
+@media not all and (min-width: 47.5em) {
+  .repli-bouton[aria-expanded="false"] + .cartes {
+    display: none;
+  }
+}
+
+@media (min-width: 47.5em) {
+  .repli-bouton {
+    display: none;
+  }
+
+  .chiffre-tuile {
+    font-size: var(--taille-titre-1);
+  }
+}
+
+/* Mouvement réduit : ni transition ni animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

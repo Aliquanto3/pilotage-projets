@@ -1,0 +1,26 @@
+{
+  "session_id": "session-0003",
+  "transcript_path": "{{HOME}}\\.claude\\projects\\{{SLUG_PROJET}}\\00000000-0000-4000-8000-000000000000.jsonl",
+  "cwd": "{{RACINE_GITHUB}}\\_sandbox\\capture-payloads",
+  "prompt_id": "prompt-0002",
+  "permission_mode": "default",
+  "agent_id": "agent-0001",
+  "agent_type": "general-purpose",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "SubagentStop",
+  "stop_hook_active": false,
+  "agent_transcript_path": "{{HOME}}\\.claude\\projects\\{{SLUG_PROJET}}\\00000000-0000-4000-8000-000000000000\\subagents\\agent-a0000000000000000.jsonl",
+  "last_assistant_message": "TEXTE FACTICE (message assistant)",
+  "background_tasks": [
+    {
+      "id": "task-0001",
+      "type": "subagent",
+      "status": "running",
+      "description": "DESCRIPTION FACTICE",
+      "agent_type": "general-purpose"
+    }
+  ],
+  "session_crons": []
+}

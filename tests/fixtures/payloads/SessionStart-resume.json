@@ -1,0 +1,11 @@
+{
+  "session_id": "session-0002",
+  "transcript_path": "{{HOME}}\\.claude\\projects\\{{SLUG_PROJET}}\\00000000-0000-4000-8000-000000000000.jsonl",
+  "cwd": "{{RACINE_GITHUB}}\\_sandbox\\capture-payloads",
+  "hook_event_name": "SessionStart",
+  "source": "resume",
+  "seconds_since_last_response": 43,
+  "context_tokens": 36712,
+  "prompt_cache_likely_expired": false,
+  "estimated_cache_write_usd": 0.0073
+}
