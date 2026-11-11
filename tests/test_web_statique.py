@@ -26,9 +26,10 @@ INTERDITS = (
     (r"\bDOMParser\b", "DOMParser"),
     (r"\bcreateContextualFragment\b", "createContextualFragment"),
     (r"\blocalStorage\b", "localStorage"),
-    (r"\bsessionStorage\b", "sessionStorage"),
     (r"\bcookie\b", "cookie"),
     (r"\bbeforeunload\b", "beforeunload"),
+    # Aucun accès par crochets aux objets globaux (contournement de sessionStorage, cookie…).
+    (r"\b(?:window|globalThis|self|document)\s*\[", "accès par crochets à un objet global"),
     # Fin de ligne permise : l'appel coupé est jugé une fois recollé (`_joindre_suites`).
     (rf"\.setAttribute(?:NS)?\s*\((?!\s*(?:{LITTERAL}\s*,|$))", "setAttribute : nom non littéral"),
     (r"""\.setAttribute(?:NS)?\s*\(\s*["']on""", "setAttribute : nom en on*"),
@@ -69,11 +70,32 @@ def _joindre_suites(source: str) -> str:
     return re.sub(r"([.(\[=,])[ \t]*\n\s*", r"\1", source)
 
 
-def constats(source: str) -> list[str]:
+# Seules lignes (indentation retirée) qui peuvent toucher `sessionStorage`, et seulement dans
+# app.js : la valeur relue ne va que dans `valeur`, l'écriture ne prend que `jeton`.
+STOCKAGE_PERMIS = frozenset({
+    'valeur = window.sessionStorage.getItem("pilotage-cle");',
+    'window.sessionStorage.removeItem("pilotage-cle");',
+    'window.sessionStorage.setItem("pilotage-cle", jeton);',
+})
+
+
+def _stockage(source: str, fichier: str) -> list[str]:
+    """`sessionStorage` (ou un nom en `…Storage` construit) : seulement dans app.js, seulement
+    par les appels exacts permis ; `localStorage` relève de sa propre règle."""
+    trouves = []
+    for numero, ligne in enumerate(source.splitlines(), start=1):
+        if re.search(r"Storage\b", ligne) and not re.search(r"\blocalStorage\b", ligne) and (
+            fichier != "app.js" or ligne.strip() not in STOCKAGE_PERMIS
+        ):
+            trouves.append(f"{numero}: sessionStorage")
+    return trouves
+
+
+def constats(source: str, fichier: str = "") -> list[str]:
     """Règles M14 violées par `source` (une entrée par ligne fautive et par règle), puis celles
     qui n'apparaissent qu'une fois recollées les instructions coupées sur plusieurs lignes."""
     trouves = _par_ligne(source)
-    resultat = [f"{numero}: {nom}" for numero, nom in trouves]
+    resultat = [f"{numero}: {nom}" for numero, nom in trouves] + _stockage(source, fichier)
     noms = [nom for _, nom in trouves]
     joints = [nom for _, nom in _par_ligne(_joindre_suites(source))]
     for nom in dict.fromkeys(joints):
@@ -163,6 +185,33 @@ def test_constructions_permises_ne_sont_pas_signalees(sain):
     assert constats(sain) == []
 
 
+@pytest.mark.parametrize(
+    ("source", "fichier", "attendu"),
+    [
+        ('window.sessionStorage.setItem("pilotage-cle", jeton);', "app.js", []),
+        ('    valeur = window.sessionStorage.getItem("pilotage-cle");', "app.js", []),
+        ('window.sessionStorage.removeItem("pilotage-cle");', "app.js", []),
+        ('alerter(window.sessionStorage.getItem("pilotage-cle"));', "app.js",
+         ["1: sessionStorage"]),
+        ('window.sessionStorage.setItem("pilotage-cle", autre);', "app.js", ["1: sessionStorage"]),
+        ('const n = "session" + "Storage";', "app.js", ["1: sessionStorage"]),
+        ('window["session" + "Storage"].getItem(x);', "app.js",
+         ["1: accès par crochets à un objet global", "1: accès calculé sur un nom construit",
+          "1: sessionStorage"]),
+        ("globalThis[nom].getItem(x);", "app.js", ["1: accès par crochets à un objet global"]),
+        ("document[nom] = x;", "dom.js", ["1: accès par crochets à un objet global"]),
+        ('window.sessionStorage.setItem("pilotage-cle", jeton);', "cle.js", ["1: sessionStorage"]),
+        ('window.sessionStorage.setItem("autre", jeton);', "app.js", ["1: sessionStorage"]),
+        ("window.sessionStorage.getItem(nom);", "app.js", ["1: sessionStorage"]),
+        ("const s = window.sessionStorage;", "app.js", ["1: sessionStorage"]),
+        ('window.localStorage.setItem("pilotage-cle", j);', "app.js", ["1: localStorage"]),
+        ('document.cookie = "pilotage-cle=" + j;', "app.js", ["1: cookie"]),
+    ],
+)
+def test_session_storage_seulement_dans_app_js_avec_la_cle_litterale(source, fichier, attendu):
+    assert constats(source, fichier) == attendu
+
+
 def test_modules_presents():
     noms = {chemin.name for chemin in MODULES}
     assert {"app.js", "dom.js", "temps.js", "barre.js", "bandeaux.js", "cle.js", "accueil.js",
@@ -198,7 +247,7 @@ def test_css_du_tiroir_jetons_seulement():
 
 @pytest.mark.parametrize("module", MODULES, ids=lambda chemin: chemin.name)
 def test_module_respecte_m14(module):
-    assert constats(module.read_text(encoding="utf-8")) == []
+    assert constats(module.read_text(encoding="utf-8"), module.name) == []
 
 
 def test_constante_svg_definie_une_seule_fois_dans_dom():
@@ -244,7 +293,7 @@ def test_textes_exacts_de_l_epic():
     for texte in (
         "Clé d'accès perdue", "uv run lancer.py appli", "Copier la commande", '"Copié"',
         "Ctrl+C pour copier", "Une autre fenêtre de l'appli a été ouverte. Fermez cet onglet.",
-        "Cette page a perdu sa clé en se rechargeant. Relancez l'appli depuis un terminal.",
+        "Cette page n'a plus de clé valable. Relancez l'appli depuis un terminal.",
         'setAttribute("aria-describedby", idConsigne)', "DUREE_COPIE_MS = 2000",
     ):
         assert texte in cle, texte

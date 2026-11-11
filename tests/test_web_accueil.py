@@ -976,3 +976,162 @@ process.stdout.write(JSON.stringify({{ avant, apres: [dialog.open, racine.classN
   parBalise(racine, "dialog").length] }}));
 """)
     assert sortie == {"avant": [1, "tiroir-ouvert"], "apres": [False, "", 0]}
+
+
+# --- Clé d'accès gardée le temps d'un rechargement (correctif r-cle, AD-14) ---------------------
+
+JETON_A = "a" * 20
+JETON_B = "b" * 20
+TITRE_PERDUE = "Clé d'accès perdue"
+TITRE_REMPLACEE = "Une autre fenêtre de l'appli a été ouverte. Fermez cet onglet."
+
+
+def _executer_cle(corps: str, *, hash_="", garde=None, leve=False, statut0=200):
+    """Importe app.js avec un `sessionStorage` simulé (`magasin`, `leve` : il lève) et un `fetch`
+    qui répond `statut` ; `ecoute` garde les écouteurs de `window`, `titres()` les h2 affichés."""
+    from tests.test_web_tiroir import executer
+
+    return executer(f"""
+const ecoute = {{}};
+window.addEventListener = (t, f) => {{ (ecoute[t] = ecoute[t] || []).push(f); }};
+const magasin = {json.dumps({} if garde is None else {"pilotage-cle": garde})};
+let leve = {json.dumps(leve)};
+window.sessionStorage = {{
+  getItem: (k) => {{
+    if (leve) {{ throw new Error("stockage"); }}
+    return k in magasin ? magasin[k] : null;
+  }},
+  setItem: (k, v) => {{ if (leve) {{ throw new Error("stockage"); }} magasin[k] = v; }},
+  removeItem: (k) => {{ if (leve) {{ throw new Error("stockage"); }} delete magasin[k]; }},
+}};
+let statut = {statut0};
+const entetes = [];
+const donnees = {json.dumps(_donnees(["projet-a"]))};
+window.fetch = async (chemin, options) => {{
+  entetes.push(options.headers.Authorization);
+  return {{ status: statut, json: async () => ({{ ok: true, donnees }}) }};
+}};
+window.location.hash = {json.dumps(hash_)};
+let horloge = 100000;
+Date.now = () => horloge;
+const racine = new N("div"); racine.id = "racine"; body.append(racine);
+const titres = () => parClasse(racine, "ecran-titre").map((h) => h.x);
+await import({json.dumps((WEB / "app.js").as_uri())});
+await tour(10);
+{corps}
+""")
+
+
+@sans_node
+def test_cle_gardee_relue_puis_effacee_au_chargement():
+    sortie = _executer_cle("""
+process.stdout.write(JSON.stringify({ magasin, entetes, titres: titres(),
+  projets: parClasse(racine, "nom-projet").length }));
+""", garde=JETON_A)
+    assert sortie["magasin"] == {}
+    assert sortie["entetes"] == [f"Bearer {JETON_A}"]
+    assert sortie["titres"] == []
+    assert sortie["projets"] >= 1
+
+
+@sans_node
+def test_pagehide_garde_la_cle_et_rien_avant():
+    sortie = _executer_cle("""
+const avant = { ...magasin };
+for (const f of ecoute.pagehide) { f({}); }
+process.stdout.write(JSON.stringify({ avant, apres: magasin,
+  types: Object.keys(ecoute).sort() }));
+""", hash_="#" + JETON_A)
+    assert sortie["avant"] == {}
+    assert sortie["apres"] == {"pilotage-cle": JETON_A}
+    assert "pagehide" in sortie["types"] and "pageshow" in sortie["types"]
+
+
+@sans_node
+def test_fragment_valable_l_emporte_et_le_stockage_est_vide():
+    sortie = _executer_cle("""
+process.stdout.write(JSON.stringify({ magasin, entetes }));
+""", hash_="#" + JETON_A, garde=JETON_B)
+    assert sortie == {"magasin": {}, "entetes": [f"Bearer {JETON_A}"]}
+
+
+@sans_node
+def test_fragment_invalide_ne_masque_pas_le_stockage():
+    sortie = _executer_cle("""
+process.stdout.write(JSON.stringify({ magasin, entetes }));
+""", hash_="#court", garde=JETON_B)
+    assert sortie == {"magasin": {}, "entetes": [f"Bearer {JETON_B}"]}
+
+
+@sans_node
+def test_cle_du_stockage_refusee_mene_a_cle_perdue_et_stockage_vide():
+    sortie = _executer_cle("""
+process.stdout.write(JSON.stringify({ magasin, titres: titres() }));
+""", garde=JETON_A, statut0=401)
+    assert sortie == {"magasin": {}, "titres": [TITRE_PERDUE]}
+
+
+@sans_node
+def test_fragment_refuse_reste_session_remplacee():
+    sortie = _executer_cle("""
+process.stdout.write(JSON.stringify({ titres: titres() }));
+""", hash_="#" + JETON_A, statut0=401)
+    assert sortie == {"titres": [TITRE_REMPLACEE]}
+
+
+@sans_node
+def test_cle_du_stockage_acceptee_puis_refusee_est_session_remplacee():
+    sortie = _executer_cle("""
+statut = 401;
+horloge += 31000; window.periodique(); await tour(10);
+process.stdout.write(JSON.stringify({ titres: titres() }));
+""", garde=JETON_A)
+    assert sortie == {"titres": [TITRE_REMPLACEE]}
+
+
+@sans_node
+def test_rien_n_est_ecrit_au_pagehide_apres_session_remplacee():
+    sortie = _executer_cle("""
+statut = 401;
+horloge += 31000; window.periodique(); await tour(10);
+for (const f of ecoute.pagehide) { f({}); }
+process.stdout.write(JSON.stringify({ magasin, titres: titres() }));
+""", hash_="#" + JETON_A)
+    assert sortie == {"magasin": {}, "titres": [TITRE_REMPLACEE]}
+
+
+@sans_node
+def test_rien_n_est_ecrit_au_pagehide_apres_arret_sur_cle_perdue():
+    sortie = _executer_cle("""
+for (const f of ecoute.pagehide || []) { f({}); }
+process.stdout.write(JSON.stringify({ magasin, titres: titres() }));
+""", garde=JETON_A, statut0=401)
+    assert sortie == {"magasin": {}, "titres": [TITRE_PERDUE]}
+
+
+@sans_node
+def test_pageshow_persiste_efface_le_stockage():
+    sortie = _executer_cle("""
+magasin["pilotage-cle"] = "reste";
+for (const f of ecoute.pageshow) { f({ persisted: false }); }
+const non = { ...magasin };
+for (const f of ecoute.pageshow) { f({ persisted: true }); }
+process.stdout.write(JSON.stringify({ non, oui: magasin }));
+""", hash_="#" + JETON_A)
+    assert sortie == {"non": {"pilotage-cle": "reste"}, "oui": {}}
+
+
+@sans_node
+def test_stockage_qui_leve_ne_casse_rien_et_donne_cle_perdue():
+    # Fragment valable : l'appli s'ouvre, le pagehide n'échoue pas.
+    sortie = _executer_cle("""
+for (const f of ecoute.pagehide) { f({}); }
+for (const f of ecoute.pageshow) { f({ persisted: true }); }
+process.stdout.write(JSON.stringify({ titres: titres(), entetes }));
+""", hash_="#" + JETON_A, leve=True)
+    assert sortie == {"titres": [], "entetes": [f"Bearer {JETON_A}"]}
+    # Rechargement sans fragment : clé perdue, sans erreur.
+    sortie = _executer_cle("""
+process.stdout.write(JSON.stringify({ titres: titres(), entetes }));
+""", leve=True)
+    assert sortie == {"titres": [TITRE_PERDUE], "entetes": []}

@@ -57,11 +57,59 @@ let suivi = null;
 let numeroLecture = 0;
 let lectureMin = 0;
 
-// Lit la clé du fragment puis efface le fragment de la barre d'adresse, dans tous les cas.
+// Origine du jeton tant que le serveur ne l'a pas accepté une première fois.
+let jetonAEprouver = null;
+
+// Relit puis efface la clé gardée au déchargement ; tout accès au stockage est protégé.
+function relireStockage() {
+  let valeur = null;
+  try {
+    valeur = window.sessionStorage.getItem("pilotage-cle");
+  } catch {
+    valeur = null;
+  }
+  try {
+    window.sessionStorage.removeItem("pilotage-cle");
+  } catch {
+    // Stockage indisponible : comportement d'avant.
+  }
+  return valeur;
+}
+
+// `{ jeton, origine }` ou null. Le fragment (effacé de la barre d'adresse dans tous les cas)
+// l'emporte sur le stockage, qui est vidé dans tous les cas.
 function lireCle() {
+  // Stockage vidé d'abord : il l'est même si `replaceState` lève.
+  const gardee = relireStockage();
   const brut = window.location.hash.slice(1);
   window.history.replaceState(null, "", window.location.pathname + window.location.search);
-  return MOTIF_JETON.test(brut) ? brut : null;
+  if (MOTIF_JETON.test(brut)) {
+    return { jeton: brut, origine: "fragment" };
+  }
+  if (typeof gardee === "string" && MOTIF_JETON.test(gardee)) {
+    return { jeton: gardee, origine: "stockage" };
+  }
+  return null;
+}
+
+// Le jeton ne passe en stockage qu'au déchargement, sauf après un arrêt.
+// Risque résiduel accepté (AD-14) : `pagehide` ne distingue pas rechargement et fermeture ; la
+// restauration d'un onglet fermé (Ctrl+Maj+T, reprise de session) reprend donc la clé.
+function surPageHide() {
+  if (arrete || jeton === null) {
+    return;
+  }
+  try {
+    window.sessionStorage.setItem("pilotage-cle", jeton);
+  } catch {
+    // Stockage indisponible : la clé sera perdue au rechargement.
+  }
+}
+
+function surPageShow(evenement) {
+  if (evenement && evenement.persisted) {
+    relireStockage();
+  }
 }
 
 function arreter() {
@@ -77,7 +125,7 @@ function arreter() {
   }
 }
 
-function sessionRemplacee() {
+function sessionRemplacee(ecranDe = ecranSessionRemplacee) {
   if (arrete) {
     return;
   }
@@ -87,7 +135,7 @@ function sessionRemplacee() {
   fermerTiroir();
   const racine = document.getElementById("racine");
   vider(racine);
-  const ecran = ecranSessionRemplacee();
+  const ecran = ecranDe();
   racine.append(ecran);
   const titre = ecran.querySelector("h2");
   if (titre) {
@@ -109,9 +157,11 @@ async function appeler(methode, chemin) {
     return { statut: 0, corps: null };
   }
   if (reponse.status === 401) {
-    sessionRemplacee();
+    // Jeton relu du stockage et refusé d'emblée : clé perdue, pas session remplacée.
+    sessionRemplacee(jetonAEprouver === "stockage" ? ecranClePerdue : ecranSessionRemplacee);
     return { statut: 401, corps: null };
   }
+  jetonAEprouver = null;
   let corps = null;
   try {
     corps = await reponse.json();
@@ -380,7 +430,9 @@ function surTouche(evenement) {
 
 function demarrer() {
   const racine = document.getElementById("racine");
-  jeton = lireCle();
+  const cle = lireCle();
+  jeton = cle === null ? null : cle.jeton;
+  jetonAEprouver = cle === null ? null : cle.origine;
   vider(racine);
   if (jeton === null) {
     racine.append(ecranClePerdue());
@@ -403,6 +455,8 @@ function demarrer() {
   chargement = suivreChargement(contenu, rendreVue, window);
   chargement.demarrer();
   window.addEventListener("keydown", surTouche);
+  window.addEventListener("pagehide", surPageHide);
+  window.addEventListener("pageshow", surPageShow);
   minuteurPeriode = window.setInterval(relire, PERIODE_MS);
   relire();
 }
