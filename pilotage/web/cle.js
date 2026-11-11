@@ -63,7 +63,7 @@ export function ecranClePerdue() {
   titre.tabIndex = -1;
   ecran.append(
     titre,
-    el("p", null, "Cette page a perdu sa clé en se rechargeant. Relancez l'appli depuis un terminal."),
+    el("p", null, "Cette page n'a plus de clé valable. Relancez l'appli depuis un terminal."),
     blocCommande(COMMANDE_APPLI),
   );
   return ecran;

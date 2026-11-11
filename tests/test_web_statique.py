@@ -26,7 +26,6 @@ INTERDITS = (
     (r"\bDOMParser\b", "DOMParser"),
     (r"\bcreateContextualFragment\b", "createContextualFragment"),
     (r"\blocalStorage\b", "localStorage"),
-    (r"\bsessionStorage\b", "sessionStorage"),
     (r"\bcookie\b", "cookie"),
     (r"\bbeforeunload\b", "beforeunload"),
     # Fin de ligne permise : l'appel coupé est jugé une fois recollé (`_joindre_suites`).
@@ -69,11 +68,27 @@ def _joindre_suites(source: str) -> str:
     return re.sub(r"([.(\[=,])[ \t]*\n\s*", r"\1", source)
 
 
-def constats(source: str) -> list[str]:
+STOCKAGE_PERMIS = re.compile(
+    r"""\bsessionStorage\s*\.\s*(?:getItem|removeItem)\(\s*["']pilotage-cle["']\s*\)"""
+    r"""|\bsessionStorage\s*\.\s*setItem\(\s*["']pilotage-cle["']\s*,"""
+)
+
+
+def _stockage(source: str, fichier: str) -> list[str]:
+    """`sessionStorage` : seulement dans app.js, seulement avec la clé littérale pilotage-cle."""
+    trouves = []
+    for numero, ligne in enumerate(source.splitlines(), start=1):
+        for m in re.finditer(r"\bsessionStorage\b", ligne):
+            if fichier != "app.js" or not STOCKAGE_PERMIS.match(ligne, m.start()):
+                trouves.append(f"{numero}: sessionStorage")
+    return trouves
+
+
+def constats(source: str, fichier: str = "") -> list[str]:
     """Règles M14 violées par `source` (une entrée par ligne fautive et par règle), puis celles
     qui n'apparaissent qu'une fois recollées les instructions coupées sur plusieurs lignes."""
     trouves = _par_ligne(source)
-    resultat = [f"{numero}: {nom}" for numero, nom in trouves]
+    resultat = [f"{numero}: {nom}" for numero, nom in trouves] + _stockage(source, fichier)
     noms = [nom for _, nom in trouves]
     joints = [nom for _, nom in _par_ligne(_joindre_suites(source))]
     for nom in dict.fromkeys(joints):
@@ -163,6 +178,24 @@ def test_constructions_permises_ne_sont_pas_signalees(sain):
     assert constats(sain) == []
 
 
+@pytest.mark.parametrize(
+    ("source", "fichier", "attendu"),
+    [
+        ('window.sessionStorage.setItem("pilotage-cle", jeton);', "app.js", []),
+        ('window.sessionStorage.getItem("pilotage-cle");', "app.js", []),
+        ("window.sessionStorage.removeItem('pilotage-cle');", "app.js", []),
+        ('window.sessionStorage.setItem("pilotage-cle", jeton);', "cle.js", ["1: sessionStorage"]),
+        ('window.sessionStorage.setItem("autre", jeton);', "app.js", ["1: sessionStorage"]),
+        ("window.sessionStorage.getItem(nom);", "app.js", ["1: sessionStorage"]),
+        ("const s = window.sessionStorage;", "app.js", ["1: sessionStorage"]),
+        ('window.localStorage.setItem("pilotage-cle", j);', "app.js", ["1: localStorage"]),
+        ('document.cookie = "pilotage-cle=" + j;', "app.js", ["1: cookie"]),
+    ],
+)
+def test_session_storage_seulement_dans_app_js_avec_la_cle_litterale(source, fichier, attendu):
+    assert constats(source, fichier) == attendu
+
+
 def test_modules_presents():
     noms = {chemin.name for chemin in MODULES}
     assert {"app.js", "dom.js", "temps.js", "barre.js", "bandeaux.js", "cle.js", "accueil.js",
@@ -198,7 +231,7 @@ def test_css_du_tiroir_jetons_seulement():
 
 @pytest.mark.parametrize("module", MODULES, ids=lambda chemin: chemin.name)
 def test_module_respecte_m14(module):
-    assert constats(module.read_text(encoding="utf-8")) == []
+    assert constats(module.read_text(encoding="utf-8"), module.name) == []
 
 
 def test_constante_svg_definie_une_seule_fois_dans_dom():
@@ -244,7 +277,7 @@ def test_textes_exacts_de_l_epic():
     for texte in (
         "Clé d'accès perdue", "uv run lancer.py appli", "Copier la commande", '"Copié"',
         "Ctrl+C pour copier", "Une autre fenêtre de l'appli a été ouverte. Fermez cet onglet.",
-        "Cette page a perdu sa clé en se rechargeant. Relancez l'appli depuis un terminal.",
+        "Cette page n'a plus de clé valable. Relancez l'appli depuis un terminal.",
         'setAttribute("aria-describedby", idConsigne)', "DUREE_COPIE_MS = 2000",
     ):
         assert texte in cle, texte
