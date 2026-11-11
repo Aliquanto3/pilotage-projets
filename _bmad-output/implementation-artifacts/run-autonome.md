@@ -52,9 +52,22 @@ Reports à traiter dans 4.7 (venus de 4.5 et 4.11) : brancher le bouton du nom d
 hausse d'Attend pendant l'onglet Chantiers, à décider dans `app.js` ; étiquettes sur les cartes
 Attend. Report vers 5.6 : confirmer le champ `message_en_attente`, lu en provisoire par 4.11.
 
+## Rapport de fin du 2026-11-11
+
+Run terminé : V16 à V19 faites, plus le correctif r-cle (V17b). Aucun agent en cours.
+
+- **Fusionné** : 4.7 (#3), r-cle (#4), 5.5 (#6), 5.6 (#7) ; PR d'état #2 et #5. CI de `main` verte après chaque fusion.
+- **Versions** : `v0.4.0` (fin de l'epic 4) et `v0.5.0` (fin de l'epic 5), tags annotés et releases ; runtime publié dans le dépôt de configuration (v0.4.0 puis v0.5.0).
+- **Décisions de sécurité** : AD-14 amendé (clé gardée le temps d'un rechargement, accord de l'utilisateur) ; risque résiduel nommé (restauration d'un onglet fermé).
+- **Ménage** : worktrees et branches locales retirés ; branches distantes fusionnées listées, en attente d'accord.
+- **Reste hors run** : epic 6 (6.1 à 6.5, avec l'utilisateur) ; parties humaines de 2.1, 2.8, 3.5.
+- **Reports** : purge de la boîte aux lettres et des acquittements (règle de rétention à décider) ; filtre par projet de `GET /api/operations` ; audit de la charte `--strict` (outil absent de ce dépôt) ; reports antérieurs à v0.3.0 dans l'archive privée.
+
 ## À faire par l'utilisateur
 
-- (rien pour l'instant ; recette de l'accueil faite le 2026-11-11)
+1. **Réinstaller le runtime v0.5.0** sur chaque PC : dans le clone du dépôt de configuration, `git pull` puis `.\sync.ps1 restaurer`. Sur le PC de dev, l'interrupteur `desactive` reste posé (hooks coupés) jusqu'à son retrait.
+2. **Relire deux choix de 5.6** : message « tous les PC » lu dès le premier PC ; exclusion non réversible depuis l'appli.
+3. **Accord pour supprimer les branches distantes fusionnées** : `chore/etat-run-reprise-4-7`, `chore/etat-run-v17`, `story/r-cle`.
 
 ## Journal
 
@@ -112,3 +125,6 @@ Attend. Report vers 5.6 : confirmer le champ `message_en_attente`, lu en proviso
 - 2026-11-11 14:40 · 5.6 · fusion · #7 fusionnée (squash), MERGED vérifié · 8b40ce5
 - 2026-11-11 14:54 · run · CI · main verte sur 8b40ce5 (après #7) · 8b40ce5
 - 2026-11-11 14:54 · run · décision · tag annoté v0.5.0 et release publiés (fin de l'epic 5 : 5.5 et 5.6) · 8b40ce5
+- 2026-11-11 14:55 · v0.5.0 · fusion · runtime v0.5.0 publié dans claude-config (103 fichiers, porte test_sync_ps1 19 passés), PR #8 fusionnée, MERGED vérifié ; réinstallation laissée à l'utilisateur · 2faa8f6
+- 2026-11-11 14:56 · run · ménage · 4 worktrees retirés, 0 verrous levés, 4 branches locales, 0 distantes supprimées · —
+- 2026-11-11 14:57 · run · décision · fin du run (V16 à V19 et r-cle) : rapport de fin écrit ; aucun agent en cours · 8b40ce5
