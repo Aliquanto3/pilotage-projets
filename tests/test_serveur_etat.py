@@ -21,6 +21,8 @@ from tests.test_inventaire import faux_depot
 from tests.test_serveur import _demarrer, _json, requete
 
 SESSION = "11111111-2222-3333-4444-555555555555"
+ID2 = "20261106T101600Z-0a1b2c3e"
+ID3 = "20261106T101700Z-0a1b2c3f"
 QUOI = "é😀日本" * 50  # 200 points de code, de 2, 4, 3 et 3 octets UTF-8
 ID = "20261106T101500Z-0a1b2c3d"
 
@@ -74,6 +76,26 @@ def ecrire_session(quoi):
     (dossier / f"{SESSION}.json").write_text(json.dumps(objet, ensure_ascii=False), "utf-8")
 
 
+def ecrire_json(chemin, objet):
+    chemin.parent.mkdir(parents=True, exist_ok=True)
+    chemin.write_text(json.dumps(objet, ensure_ascii=False), "utf-8")
+
+
+def operation_message(id_, projet="demo"):
+    ecrire_json(chemins.operations() / f"{id_}.json", {
+        "schema": 1, "id": id_, "verbe": "deposer_message", "projet": projet, "texte": "salut"})
+
+
+def message_depose(id_, projet="demo"):
+    ecrire_json(chemins.donnees() / "boite" / projet / f"{id_}.json",
+                {"schema": 1, "id": id_, "projet": projet, "texte": "salut"})
+
+
+def acquitter(racine, id_, pc, projet="demo"):
+    ecrire_json(racine / "boite" / projet / f"{id_}.lu.{pc}",
+                {"schema": 1, "session": SESSION, "pc": pc, "heure": "2026-11-06T12:30:00Z"})
+
+
 def test_sans_jeton_401(serveur):
     reponse, _ = requete(serveur, "GET", "/api/etat")
     assert reponse.status == 401
@@ -85,7 +107,7 @@ def test_etat_assemble_complet(scanne, serveur):
     donnees = _json(contenu)["donnees"]
     assert list(donnees) == [
         "cartes", "colonnes", "chantiers", "comptes", "details", "dependances", "fraicheur",
-        "alertes", "cycle", "utilisateur",
+        "alertes", "cycle", "utilisateur", "chantiers_connus",
     ]
     assert list(donnees["colonnes"]) == list(noyau_etat.ACTIONS)
     assert donnees["chantiers"] == []
@@ -111,7 +133,10 @@ def test_etat_assemble_complet(scanne, serveur):
     # détail du tiroir (4.7) : à part des cartes, faits du dépôt et critères du noyau
     assert list(donnees["details"]) == ["demo"]
     detail = donnees["details"]["demo"]
-    assert list(detail) == ["sessions", "depot", "depot_de", "criteres"]
+    assert list(detail) == ["sessions", "depot", "depot_de", "criteres", "pause"]
+    assert detail["pause"] is None
+    assert carte["message_en_attente"] is False  # aucun message (story 5.6)
+    assert donnees["chantiers_connus"] == []  # pas de projets.yaml
     assert (detail["sessions"], detail["depot_de"]) == ([], None)
     assert set(detail["depot"]) == {
         "tag", "commits", "prs_ouvertes", "stories_ouvertes", "ci", "sprint_status"}
@@ -215,6 +240,87 @@ def test_parametre_trop_long_tronque_le_scan_reste_vivant():
     assert len(alerte["params"]["detail"]) == 300
 
 
+# --- Story 5.6 : message en attente sur les cartes, chantiers connus ------------------------
+
+
+def ecrire_projets(contenu):
+    chemins.donnees().mkdir(parents=True, exist_ok=True)
+    (chemins.donnees() / "projets.yaml").write_text(contenu, "utf-8")
+
+
+def cartes_demo(donnees):
+    """Les cartes `demo` de `cartes`, `colonnes` et `chantiers[*].projets`."""
+    listes = [donnees["cartes"], *donnees["colonnes"].values()]
+    listes += [c["projets"] for c in donnees["chantiers"]]
+    return [c for liste in listes for c in liste if c["nom"] == "demo"]
+
+
+def drapeaux(serveur):
+    donnees = _json(lire(serveur)[1])["donnees"]
+    trouvees = cartes_demo(donnees)
+    return [c["message_en_attente"] for c in trouvees]
+
+
+@pytest.fixture
+def en_chantier(scanne):
+    ecrire_projets(
+        "schema: 1\nchantiers:\n  outils:\n    projets: [demo]\n")
+    return scanne
+
+
+def test_message_en_attente_pose_sur_les_trois_listes(en_chantier, serveur):
+    operation_message(ID)
+    donnees = _json(lire(serveur)[1])["donnees"]
+    trouvees = cartes_demo(donnees)
+    assert len(trouvees) == 3  # cartes, sa colonne, son chantier
+    assert [c["message_en_attente"] for c in trouvees] == [True, True, True]
+    assert donnees["chantiers"][0]["genre"] == "chantier"
+    assert "message_en_attente" not in donnees["chantiers"][0]  # carte de projet seulement
+
+
+def test_message_depose_non_lu_en_attente(en_chantier, serveur):
+    message_depose(ID)
+    assert drapeaux(serveur) == [True, True, True]
+
+
+@pytest.mark.parametrize("racine", ["attente", "donnees"])
+def test_message_acquitte_n_est_plus_en_attente(en_chantier, serveur, racine):
+    message_depose(ID)
+    operation_message(ID2)
+    acquitter(getattr(chemins, racine)(), ID, "pc-b")
+    acquitter(getattr(chemins, racine)(), ID2, "pc-a")
+    assert drapeaux(serveur) == [False, False, False]
+
+
+def test_un_message_lu_un_non_lu_reste_en_attente(en_chantier, serveur):
+    message_depose(ID)
+    message_depose(ID2)
+    acquitter(chemins.donnees(), ID, "pc-b")
+    assert drapeaux(serveur) == [True, True, True]
+
+
+def test_message_d_un_autre_projet_sans_effet(en_chantier, serveur):
+    operation_message(ID, projet="autre")
+    message_depose(ID2, projet="autre")
+    assert drapeaux(serveur) == [False, False, False]
+
+
+def test_chantiers_connus_tries_vides_compris(scanne, serveur):
+    ecrire_projets(
+        "schema: 1\nchantiers:\n  zeta:\n    projets: [demo]\n  Beta:\n  alpha:\n"
+        "    projets: []\n")
+    donnees = _json(lire(serveur)[1])["donnees"]
+    assert donnees["chantiers_connus"] == ["alpha", "Beta", "zeta"]
+    assert [c["nom"] for c in donnees["chantiers"]] == ["zeta"]  # non vides seulement
+
+
+@pytest.mark.parametrize("contenu", [None, "schema: 1\n", "chantiers: [a, b\n", "- liste\n"])
+def test_chantiers_connus_vide_sans_projets_yaml_lisible(serveur, contenu):
+    if contenu is not None:
+        ecrire_projets(contenu)
+    assert _json(lire(serveur)[1])["donnees"]["chantiers_connus"] == []
+
+
 # --- M15, AD-14 : les lectures n'ont aucun effet --------------------------------------------
 
 
@@ -251,7 +357,12 @@ def cible(route):
 def test_route_get_sans_effet(route, scanne, racine_web, monkeypatch):
     ecrire_session("a faire")
     (chemins.donnees() / "etat").mkdir(parents=True)
-    (chemins.donnees() / "projets.yaml").write_text("schema: 1\n", "utf-8")
+    (chemins.donnees() / "projets.yaml").write_text(
+        "schema: 1\nchantiers:\n  outils:\n    projets: [demo]\n", "utf-8")
+    # messages en file, déposé et acquitté (5.6) : `message_en_attente` les lit sans effet
+    operation_message(ID2)
+    message_depose(ID3)
+    acquitter(chemins.donnees(), ID3, "pc-b")
     chemins.briefs().mkdir(parents=True)  # brief servi par `GET /api/brief/<id>` (5.4)
     (chemins.briefs() / f"{ID}.md").write_text("# Brief\n", "utf-8")
     # une route non encore livrée reçoit un gestionnaire neutre : le test couvre toute la table

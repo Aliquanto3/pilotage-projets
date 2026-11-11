@@ -8,6 +8,8 @@ import { construireBarre } from "./barre.js";
 import { boutonNom as boutonChantiers, rendreChantiers } from "./chantiers.js";
 import { ecranClePerdue, ecranSessionRemplacee } from "./cle.js";
 import { TEXTE_INJOIGNABLE, alerter, annoncer, el, vider } from "./dom.js";
+import "./boite.js";
+import "./reglages.js";
 import "./reprise.js";
 import "./sections-projet.js";
 import { suivreChargement } from "./synthese.js";
@@ -52,6 +54,8 @@ let attendConnus = null;
 // Suivi d'un cycle (scan ou synchro) : motif "lance" (bouton), "deja" (409) ou "observe".
 let lancement = false;
 let suivi = null;
+// Dépôts qui déclenchent une synchro côté serveur (story 5.6).
+const DEPOTS = ["/api/message", "/api/projets"];
 // Numéro de chaque GET /api/etat : une réponse à un GET parti avant la réponse du dernier POST
 // est ignorée (elle décrirait l'état d'avant le lancement).
 let numeroLecture = 0;
@@ -181,7 +185,19 @@ async function appeler(methode, chemin, { json, texte } = {}) {
   } catch {
     corps = null;
   }
+  if (methode === "POST" && reponse.status === 202 && DEPOTS.includes(chemin)) {
+    syncDemandee();
+  }
   return { statut: reponse.status, corps };
+}
+
+// Message ou réglage accepté (story 5.6) : la synchro qui suit est un geste de l'utilisateur,
+// suivie comme un lancement (aucune annonce de hausse à sa relecture, report de 4.11).
+function syncDemandee() {
+  if (suivi === null) {
+    suivi = { motif: "lance", finAvant: finDe(etat ? etat.cycle : null) };
+  }
+  relire();
 }
 
 function erreurDe(corps) {

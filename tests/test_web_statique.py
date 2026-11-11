@@ -215,7 +215,8 @@ def test_session_storage_seulement_dans_app_js_avec_la_cle_litterale(source, fic
 def test_modules_presents():
     noms = {chemin.name for chemin in MODULES}
     assert {"app.js", "dom.js", "temps.js", "barre.js", "bandeaux.js", "cle.js", "accueil.js",
-            "chantiers.js", "tiroir.js", "sections-projet.js", "types.js", "reprise.js"} <= noms
+            "chantiers.js", "tiroir.js", "sections-projet.js", "types.js", "reprise.js",
+            "operations.js", "boite.js", "reglages.js"} <= noms
 
 
 def test_textes_exacts_et_litteraux_interdits_du_panneau_de_reprise():
@@ -415,3 +416,53 @@ def test_codes_erreur_des_bandeaux_sont_les_refus_de_depot():
     codes = set(re.findall(r'"([^"]+)"', trouve.group(1)))
     assert codes == {alertes.DEPOT_PUBLIC, alertes.DEPOT_NON_CONFIGURE}
     assert codes <= set(alertes.MODELES)
+
+
+def test_textes_exacts_des_messages_et_reglages():
+    """Story 5.6 : textes d'EXPERIENCE, sections avec `maj`, aucun motif de secret côté front."""
+    boite = (WEB / "boite.js").read_text(encoding="utf-8")
+    for texte in ('"Message déposé, en attente de synchro."', '"Lecture des messages…"',
+                  '"Aucun message."', '"Tous les PC"', '"PC visé"', '"Message"', '"Déposer"',
+                  "BORNE_MESSAGE = 2048", "MESSAGES_AFFICHES = 20", "new TextEncoder()",
+                  'setAttribute("aria-describedby", "boite-compteur")', '"Pour tous les PC"',
+                  'enregistrerSection({ id: "messages", titre: "Messages", rendre, maj });'):
+        assert texte in boite, texte
+    assert "aria-live" not in boite
+    reglages = (WEB / "reglages.js").read_text(encoding="utf-8")
+    for texte in ('"Projet exclu ou retiré : il n\'apparaît plus dans l\'appli."',
+                  '"Date de revue illisible dans projets.yaml : corrigez-la à la main."',
+                  '"Le projet disparaîtra de l\'appli sur tous les PC après la "',
+                  '"synchro. On le réintègre en éditant projets.yaml."', '"Aucun (à classer)"',
+                  '"Aucun chantier (à classer)"', '"Classer"', '"Rattacher"', '"Mettre en pause"',
+                  '"Changer la date de revue"', '"Lever la pause"', '"Exclure"', '"Annuler"',
+                  "`Confirmer l'exclusion de ${ctx.nom}`", "`En attente de synchro : ${texte}`",
+                  '"retrait du chantier"', '"levée de la pause"', '"exclusion"',
+                  'CATEGORIE_A_CLASSER = "découvert, à classer"', '"bandeau-local alerte"',
+                  'enregistrerSection({ id: "reglages", titre: "Réglages", rendre, maj });'):
+        assert texte in reglages, texte
+    operations = (WEB / "operations.js").read_text(encoding="utf-8")
+    for texte in ("new WeakMap()", 'ctx.appeler("GET", "/api/operations")',
+                  '"bandeau-local erreur"', "TEXTE_INJOIGNABLE"):
+        assert texte in operations, texte
+    for module in (boite, reglages, operations):
+        assert "btn1" not in module  # aucun bouton principal : celui de la reprise reste seul
+        for interdit in ("ghp_", "akia", "-----begin", "<<<pilotage"):  # serveur seul juge
+            assert interdit not in module.casefold(), interdit
+
+
+def test_css_des_messages_et_reglages():
+    css = (WEB / "appli.css").read_text(encoding="utf-8")
+    champs = css.split('.boite textarea,\n.boite select,\n.reglages select,\n'
+                       '.reglages input[type="date"] {', 1)[1].split("}", 1)[0]
+    for regle in ("min-height: 24px", "min-width: 24px", "border: 1px solid var(--trait-fort)",
+                  "border-radius: var(--rayon-petit)"):
+        assert regle in champs, regle
+    zone = css.split(".boite textarea {", 1)[1].split("}", 1)[0]
+    assert "min-block-size: 6rem" in zone and "resize: vertical" in zone
+    assert "color: var(--erreur)" in css.split("#boite-compteur.erreur,", 1)[1].split("}", 1)[0]
+    message = css.split(".texte-message {", 1)[1].split("}", 1)[0]
+    assert "white-space: pre-wrap" in message and "overflow-wrap: anywhere" in message
+    local = css.split(".bandeau-local {", 1)[1].split("}", 1)[0]
+    assert "var(--alerte)" in local and "var(--alerte-doux)" in local
+    erreur = css.split(".bandeau-local.erreur {", 1)[1].split("}", 1)[0]
+    assert "var(--erreur)" in erreur and "var(--erreur-doux)" in erreur

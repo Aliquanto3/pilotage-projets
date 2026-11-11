@@ -1181,6 +1181,106 @@ pre.brief {
   overflow-wrap: anywhere;
 }
 
+/* Messages et réglages du tiroir (story 5.6) : champs en contour fort, cibles de 24 px au
+   moins, texte d'un message en texte brut inerte, bandeaux locaux aux jetons de la charte. */
+.boite,
+.reglages,
+.reglage,
+.confirmation-exclusion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espacement-2);
+}
+
+.boite > p,
+.reglages > p,
+.reglage p,
+.confirmation-exclusion > p {
+  margin: 0;
+}
+
+.confirmation-exclusion[hidden],
+.btn2[hidden] {
+  display: none;
+}
+
+.boite textarea,
+.boite select,
+.reglages select,
+.reglages input[type="date"] {
+  min-height: 24px;
+  min-width: 24px;
+  font: inherit;
+  border: 1px solid var(--trait-fort);
+  border-radius: var(--rayon-petit);
+}
+
+.boite textarea:disabled,
+.boite select:disabled,
+.reglages select:disabled,
+.reglages input[type="date"]:disabled {
+  border-color: var(--trait);
+}
+
+.boite textarea {
+  align-self: stretch;
+  min-block-size: 6rem;
+  resize: vertical;
+}
+
+.boite .btn2,
+.reglages .btn2 {
+  min-height: 24px;
+  min-width: 24px;
+}
+
+#boite-compteur.erreur,
+.revue-illisible .erreur {
+  color: var(--erreur);
+}
+
+.messages-projet,
+.liste-messages {
+  align-self: stretch;
+}
+
+.liste-messages {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.liste-messages > li {
+  padding: var(--espacement-2) 0;
+  border-top: var(--trait-largeur) solid var(--trait);
+}
+
+.texte-message {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.en-vigueur {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.bandeau-local {
+  align-self: stretch;
+  padding: var(--espacement-2) var(--espacement-3);
+  border-left: 4px solid var(--alerte);
+  background: var(--alerte-doux);
+  color: var(--texte);
+  overflow-wrap: anywhere;
+}
+
+.bandeau-local.erreur {
+  border-left-color: var(--erreur);
+  background: var(--erreur-doux);
+}
+
 /* Mouvement réduit : ni transition ni animation. */
 @media (prefers-reduced-motion: reduce) {
   *,
