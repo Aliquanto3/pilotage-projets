@@ -64,14 +64,14 @@ development_status:
   3-6-synchro-détachée-lancée-par-les-hooks-v0-2-0: done
   epic-3-retrospective: optional
 
-  epic-4: in-progress
+  epic-4: done
   4-1-serveur-local-et-périmètre-de-sécurité: done
   4-2-route-d-état-assemblé: done
   4-3-scan-et-sync-lancés-par-le-serveur: done
   4-4-coquille-de-l-appli-clé-d-accès-et-barre-du-haut: done
   4-5-accueil-kanban: done
   4-6-grille-responsive-et-rafraîchissement-de-l-accueil: done
-  4-7-tiroir-de-détail-et-vue-chantiers-v0-4-0: backlog
+  4-7-tiroir-de-détail-et-vue-chantiers-v0-4-0: done
   4-8-famille-attente-vieillissante-et-accueil-par-projet: done
   4-9-charte-v2-1-dans-l-appli: done
   4-10-tête-de-l-accueil-coup-d-œil: done
@@ -83,7 +83,7 @@ development_status:
   5-2-mutations-reçues-par-le-serveur: done
   5-3-messages-injectés-au-démarrage-d-une-session: done
   5-4-commande-de-reprise-et-brief: done
-  5-5-panneau-de-reprise-dans-le-tiroir: backlog
+  5-5-panneau-de-reprise-dans-le-tiroir: in-progress
   5-6-messages-et-réglages-dans-le-tiroir-v0-5-0: backlog
   epic-5-retrospective: optional
 
