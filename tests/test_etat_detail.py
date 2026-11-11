@@ -197,6 +197,7 @@ def test_criteres_suit_critere_manquant_meme_sur_des_comptes_negatifs(commits):
     ({"revue": "01/12/2026"}, {"revue": "01/12/2026"}),  # tel quel : le tiroir juge la forme
     (None, None),
     ("2026-12-01", None),  # pas un objet
+    ({"revue": "2026-12-01", "note": "privée"}, {"revue": "2026-12-01"}),  # liste blanche
 ])
 def test_pause_tel_quel_ou_none(pause, attendu):
     faits = {} if pause is None else {"pause": pause}

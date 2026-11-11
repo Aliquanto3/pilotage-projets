@@ -530,10 +530,10 @@ def detail(faits: Mapping, fuseau: tzinfo) -> dict:
 
     `sessions` : liste blanche (`_session_affichee`), triées par PC (casefold) puis la plus
     récente d'abord ; `depot` : faits du dépôt lisibles (`_depot_affiche`) ou None ; `criteres` :
-    `criteres(depot)`, None sans faits de dépôt lisibles ; `pause` : `faits["pause"]` tel quel
-    (`{"revue": str}`, attendu exact d'un réglage de pause, story 5.6) ou None. Les heures
-    restent en ISO UTC : le web les rend dans le fuseau du navigateur. `fuseau` est vérifié
-    comme dans `calculer_action`.
+    `criteres(depot)`, None sans faits de dépôt lisibles ; `pause` : `{"revue": …}` tiré de
+    `faits["pause"]` (liste blanche, valeur telle quelle : attendu exact d'un réglage de pause,
+    story 5.6) ou None. Les heures restent en ISO UTC : le web les rend dans le fuseau du
+    navigateur. `fuseau` est vérifié comme dans `calculer_action`.
     """
     if not isinstance(fuseau, tzinfo):
         raise ValueError("detail : `fuseau` doit être un tzinfo")
@@ -547,7 +547,7 @@ def detail(faits: Mapping, fuseau: tzinfo) -> dict:
         "depot": _depot_affiche(depot) if lisible else None,
         "depot_de": faits.get("depot_de"),
         "criteres": criteres(depot) if lisible else None,
-        "pause": dict(pause) if isinstance(pause, Mapping) else None,
+        "pause": {"revue": pause.get("revue")} if isinstance(pause, Mapping) else None,
     }
 
 

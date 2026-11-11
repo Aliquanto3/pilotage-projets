@@ -119,6 +119,16 @@ function options(s, v) {
   if (v.chantier !== null && !connus.includes(v.chantier)) {
     connus.push(v.chantier);
   }
+  const valeurs = ["", ...connus];
+  const memes = s.chantier.options.length === valeurs.length
+    && valeurs.every((n, i) => s.chantier.options[i].value === n);
+  if (!memes) {  // liste inchangée : options gardées, une liste ouverte ne se referme pas
+    rebatirOptions(s, connus);
+  }
+  s.chantier.value = v.chantier === null ? "" : v.chantier;
+}
+
+function rebatirOptions(s, connus) {
   vider(s.chantier);
   const aucun = el("option", null, AUCUN_CHANTIER);
   aucun.value = "";
@@ -128,7 +138,6 @@ function options(s, v) {
     option.value = nom;
     s.chantier.append(option);
   }
-  s.chantier.value = v.chantier === null ? "" : v.chantier;
 }
 
 // Valeurs des contrôles au repos, libellés et états `disabled` d'après l'état et la file.
@@ -167,6 +176,7 @@ function actualiser(s) {
 // États `disabled` seuls (appelé aussi à chaque saisie).
 function etats(s) {
   const v = s.vigueur;
+  const focus = typeof document !== "undefined" ? document.activeElement : null;
   const occupe = s.envoi !== null;
   const voulu = s.chantier.value === "" ? null : s.chantier.value;
   const chantierPris = occupe || s.attente.has("chantier");
@@ -179,6 +189,11 @@ function etats(s) {
   const excluPris = occupe || s.attente.has("exclu");
   s.exclure.disabled = excluPris;
   s.confirmer.disabled = excluPris;
+  // Contrôle focalisé devenu inactif (envoi, champ en attente) : le focus reste dans la section
+  // au lieu de retomber sur la page.
+  if (focus && focus.disabled && focus !== s.noeud && s.noeud.contains(focus)) {
+    s.noeud.focus();
+  }
 }
 
 async function chargerAttente(s) {
@@ -264,8 +279,8 @@ function absent(noeud) {
   noeud.append(el("p", "meta", TEXTE_ABSENT));
 }
 
-function construire(ctx) {
-  const noeud = el("div", "reglages");
+function construire(ctx, noeud = el("div", "reglages")) {
+  noeud.tabIndex = -1;
   const s = {
     ctx, noeud, numero: 0, envoi: null, enCours: new Set(), attente: new Map(), vigueur: null,
     erreurLecture: false,
@@ -358,7 +373,17 @@ function rendre(ctx) {
 
 function maj(noeud, ctx) {
   const s = ETATS.get(noeud);
-  if (s === undefined || s.ctx.carte === null) {
+  if (s === undefined) {
+    return;
+  }
+  if (s.ctx.carte === null) {  // projet revenu dans l'état (projets.yaml édité) : contrôles rebâtis
+    if (ctx.carte !== null) {
+      vider(noeud);
+      const neuf = construire(ctx, noeud);
+      ETATS.set(noeud, neuf);
+      actualiser(neuf);
+      chargerAttente(neuf);
+    }
     return;
   }
   s.ctx = ctx;

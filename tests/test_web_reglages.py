@@ -324,3 +324,39 @@ sortir({ vue: vue(), journal: F.journal });
     assert v["bandeaux"] == [["bandeau-local erreur", attendu]]
     assert v["chantier"][0] == "outils" and v["rattacher"][1] is True
     assert f"alerte:{attendu}" in sortie["journal"]
+
+
+@sans_node
+def test_projet_revenu_controles_rebatis():
+    sortie = lancer_r("""
+T.majTiroir(VIDE);
+await tour(10);
+T.majTiroir(ETAT);
+await tour(10);
+sortir(vue());
+""".replace("VIDE", json.dumps(etat_page(cartes=[]))).replace("ETAT", json.dumps(etat_demo())))
+    assert ABSENT not in sortie["textes"] and sortie["exclure"] == ["Exclure", True, True]
+    assert sortie["vigueur"] == "En vigueur : Chantier : alpha · pas de pause"
+
+
+@sans_node
+def test_options_gardees_si_la_liste_ne_change_pas():
+    sortie = lancer_r("""
+const avant = un("choix-chantier").options[1];
+T.majTiroir(ETAT);
+await tour(10);
+sortir({ memes: un("choix-chantier").options[1] === avant, vue: vue() });
+""".replace("ETAT", json.dumps(etat_demo(chantier="outils"))))
+    assert sortie["memes"] is True  # une liste ouverte ne se referme pas à la relecture
+    assert sortie["vue"]["chantier"][0] == "outils"
+
+
+@sans_node
+def test_focus_garde_dans_la_section_quand_le_bouton_devient_inactif():
+    sortie = lancer_r("""
+saisir(un("choix-chantier"), "outils", "change");
+un("rattacher").focus();
+un("rattacher").click();
+sortir(vue());
+""", {"POST /api/projets": "attendre"})
+    assert sortie["rattacher"][1] is False and sortie["focus"] == "reglages"

@@ -67,6 +67,8 @@ function majSaisie(s) {
     s.compteur.classList.remove("erreur");
   }
   s.bouton.disabled = s.envoi || n > BORNE_MESSAGE || s.zone.value.trim() === "";
+  // Zone en lecture seule pendant l'envoi : le 202 la vide, rien de tapé entre-temps n'est perdu.
+  s.zone.readOnly = s.envoi;
 }
 
 function ligneMessage(message) {

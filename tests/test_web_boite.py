@@ -106,7 +106,7 @@ const vue = () => {
     erreurs: parClasse(b, "bandeau-local").map((d) => [d.className, d.x]),
     focus: document.activeElement === zone ? "zone" : document.activeElement === bouton
       ? "bouton" : null,
-    ul: parClasse(b, "liste-messages").length,
+    ul: parClasse(b, "liste-messages").length, lectureSeule: zone.readOnly === true,
   };
 };
 const zone = () => parBalise(section("boite"), "textarea")[0];
@@ -167,11 +167,12 @@ await tour(10);
 sortir({ pendant, apres: vue(), appels, annonces: F.annonces });
 """, {"GET /api/operations": [operations(), operations([deposee])], "POST /api/message": ACCEPTE})
     assert sortie["pendant"]["busy"] == "true" and sortie["pendant"]["actif"] is False
+    assert sortie["pendant"]["lectureSeule"] is True  # rien de tapé pendant l'appel n'est perdu
     post = [a for a in sortie["appels"] if a[0] == "POST"]
     assert post == [["POST", "/api/message", {"json": {"projet": "demo", "texte": "  à relire  "}}]]
     apres = sortie["apres"]
     assert apres["zone"] == "" and apres["compteur"] == "2048 octets restants"
-    assert apres["focus"] == "zone" and apres["busy"] is None
+    assert apres["focus"] == "zone" and apres["busy"] is None and not apres["lectureSeule"]
     assert apres["textes"] == ["  à relire  "]  # relu sur le serveur, jamais inséré localement
     assert apres["metas"] == ["Pour tous les PC · en attente de synchro"]
     assert DEPOSE in sortie["annonces"]
