@@ -9,7 +9,7 @@ stable, à stabiliser, en pause, à relancer ou à classer. L'appli s'ouvre dans
 
 ## Statut
 
-Outil personnel de son auteur, en version 0.4.0, en développement. Il ne tourne que sous Windows
+Outil personnel de son auteur, en version 0.5.0, en développement. Il ne tourne que sous Windows
 et il est publié sans support : pas de garantie, et les issues ou demandes de fonctionnalité ne
 seront pas forcément traitées. Les commandes de ce fichier ont été vérifiées contre le code ; le
 parcours d'installation complet sur un PC neuf, avec un autre compte GitHub que celui de l'auteur,

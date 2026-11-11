@@ -526,12 +526,14 @@ def _depot_affiche(depot: Mapping) -> dict:
 
 
 def detail(faits: Mapping, fuseau: tzinfo) -> dict:
-    """Détail d'un projet pour le tiroir : `{sessions, depot, depot_de, criteres}`.
+    """Détail d'un projet pour le tiroir : `{sessions, depot, depot_de, criteres, pause}`.
 
     `sessions` : liste blanche (`_session_affichee`), triées par PC (casefold) puis la plus
     récente d'abord ; `depot` : faits du dépôt lisibles (`_depot_affiche`) ou None ; `criteres` :
-    `criteres(depot)`, None sans faits de dépôt lisibles. Les heures restent en ISO UTC : le web
-    les rend dans le fuseau du navigateur. `fuseau` est vérifié comme dans `calculer_action`.
+    `criteres(depot)`, None sans faits de dépôt lisibles ; `pause` : `faits["pause"]` tel quel
+    (`{"revue": str}`, attendu exact d'un réglage de pause, story 5.6) ou None. Les heures
+    restent en ISO UTC : le web les rend dans le fuseau du navigateur. `fuseau` est vérifié
+    comme dans `calculer_action`.
     """
     if not isinstance(fuseau, tzinfo):
         raise ValueError("detail : `fuseau` doit être un tzinfo")
@@ -539,11 +541,13 @@ def detail(faits: Mapping, fuseau: tzinfo) -> dict:
     sessions.sort(key=lambda s: str(s.get("pc") or "?").casefold())  # stable : PC, puis récente
     depot = faits.get("depot")
     lisible = _depot_lisible(depot)
+    pause = faits.get("pause")
     return {
         "sessions": [_session_affichee(s) for s in sessions],
         "depot": _depot_affiche(depot) if lisible else None,
         "depot_de": faits.get("depot_de"),
         "criteres": criteres(depot) if lisible else None,
+        "pause": dict(pause) if isinstance(pause, Mapping) else None,
     }
 
 

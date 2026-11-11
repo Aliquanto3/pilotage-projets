@@ -1272,3 +1272,76 @@ process.stdout.write(JSON.stringify({ ouvert: d.open, marge: racine.className,
     assert sortie == {"ouvert": False, "marge": "",
                       "titres": ["Une autre fenêtre de l'appli a été ouverte. Fermez cet onglet."],
                       "dialogs": 0}
+
+
+# --- Story 5.6 : un message ou un réglage accepté lance le suivi de la synchro -----------------
+
+
+GESTES_5_6 = {
+    "/api/message": """
+const zone = parBalise(dialog(), "textarea")[0];
+zone.value = "salut"; zone.dispatchEvent(new F.Evenement("input"));
+parClasse(dialog(), "deposer")[0].click();
+""",
+    "/api/projets": """
+parClasse(dialog(), "exclure")[0].click();
+parClasse(dialog(), "confirmer-exclusion")[0].click();
+""",
+}
+
+
+@sans_node
+@pytest.mark.parametrize("route", sorted(GESTES_5_6))
+def test_depot_accepte_suivi_lance_sans_annonce_de_hausse(route):
+    from tests.test_web_tiroir import executer
+
+    lectures = [_donnees(["projet-a"]), _donnees(["projet-a", "projet-b"])]
+    sortie = executer(f"""
+const lectures = {json.dumps(lectures)};
+const requetes = [];
+let i = 0;
+window.fetch = async (chemin, options) => {{
+  requetes.push([chemin, options.method]);
+  if (chemin === "/api/operations") {{
+    return {{ status: 200, json: async () => ({{ ok: true,
+      donnees: {{ operations: [], messages: [] }} }}) }};
+  }}
+  if (options.method === "POST") {{
+    return {{ status: 202, json: async () => ({{ ok: true, donnees: {{ id: "x" }} }}) }};
+  }}
+  if (chemin !== "/api/etat") {{
+    return {{ status: 200, json: async () => ({{ ok: true, donnees: null }}) }};
+  }}
+  return {{ status: 200,
+    json: async () => ({{ ok: true, donnees: lectures[Math.min(i++, lectures.length - 1)] }}) }};
+}};
+window.location.hash = "#" + "a".repeat(20);
+let horloge = 100000;
+Date.now = () => horloge;
+const racine = new N("div"); racine.id = "racine"; body.append(racine);
+await import({json.dumps((WEB / "app.js").as_uri())});
+await tour(10);
+parClasse(racine, "nom-projet").find((b) => texte(b) === "projet-a").click();
+await tour(10);
+const dialog = () => parBalise(racine, "dialog")[0];
+horloge += 2000;
+{GESTES_5_6[route]}
+await tour(20);
+process.stdout.write(JSON.stringify({{ lectures: i, annonces: [...F.annonces],
+  posts: requetes.filter((r) => r[1] === "POST").map((r) => r[0]),
+  attend: parClasse(racine, "nom-projet").map((b) => texte(b)) }}));
+""")
+    assert sortie["posts"] == [route]
+    assert sortie["lectures"] == 2  # relecture tout de suite après le 202
+    assert "projet-b" in sortie["attend"]
+    assert not [a for a in sortie["annonces"] if a.startswith("Nouvelle attente")]
+
+
+def test_app_suit_la_synchro_d_un_depot_accepte():
+    app = (WEB / "app.js").read_text(encoding="utf-8")
+    assert 'const DEPOTS = ["/api/message", "/api/projets"];' in app
+    assert 'import "./boite.js";' in app and 'import "./reglages.js";' in app
+    assert re.search(r'if \(methode === "POST" && reponse\.status === 202 && '
+                     r"DEPOTS\.includes\(chemin\)\) \{\s*syncDemandee\(\);", app)
+    assert re.search(r'suivi = \{ motif: "lance", finAvant: finDe\(etat \? etat\.cycle : null\) \};'
+                     r"\s*\}\s*relire\(\);", app)

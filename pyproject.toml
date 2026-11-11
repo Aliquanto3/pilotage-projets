@@ -1,6 +1,6 @@
 [project]
 name = "pilotage-projets"
-version = "0.4.0"
+version = "0.5.0"
 description = "Tableau de bord local : projets de Documents/GitHub et sessions Claude Code sur plusieurs PC."
 readme = "README.md"
 license = "Apache-2.0"

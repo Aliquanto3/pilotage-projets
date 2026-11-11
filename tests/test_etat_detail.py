@@ -166,7 +166,8 @@ def test_depot_en_liste_blanche_commits_dans_l_ordre_sans_zeros():
                                      depot(commits={"feat": "3"})])
 def test_depot_absent_ou_illisible(depot_):
     rendu = etat.detail({"depot": depot_}, PARIS)
-    assert rendu == {"sessions": [], "depot": None, "depot_de": None, "criteres": None}
+    assert rendu == {"sessions": [], "depot": None, "depot_de": None, "criteres": None,
+                     "pause": None}
 
 
 def test_fuseau_obligatoire():
@@ -189,3 +190,17 @@ def test_criteres_suit_critere_manquant_meme_sur_des_comptes_negatifs(commits):
     assert etat.critere_manquant(d) == "commits-depuis-release"
     rendu = {c["code"]: c for c in etat.criteres(d)}["commits"]
     assert rendu["rempli"] is False
+
+
+@pytest.mark.parametrize(("pause", "attendu"), [
+    ({"revue": "2026-12-01"}, {"revue": "2026-12-01"}),
+    ({"revue": "01/12/2026"}, {"revue": "01/12/2026"}),  # tel quel : le tiroir juge la forme
+    (None, None),
+    ("2026-12-01", None),  # pas un objet
+])
+def test_pause_tel_quel_ou_none(pause, attendu):
+    faits = {} if pause is None else {"pause": pause}
+    rendu = etat.detail(faits, PARIS)
+    assert rendu["pause"] == attendu
+    if isinstance(pause, dict):
+        assert rendu["pause"] is not pause  # copie : le détail ne partage pas les faits
