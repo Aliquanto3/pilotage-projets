@@ -229,9 +229,11 @@ T.ouvrirTiroir("beta", o2);
 o2.remove();
 T.fermerTiroir();
 await tour();
-sortir({ retrouve, main: document.activeElement === main });
+const tabindex = main.getAttribute("tabindex");
+sortir({ retrouve, main: document.activeElement === main, tabindex });
 """)
-    assert sortie == {"retrouve": True, "main": True}
+    # `main` rendu focalisable (sans `tabindex`, un vrai navigateur laisserait le focus à `body`)
+    assert sortie == {"retrouve": True, "main": True, "tabindex": "-1"}
 
 
 @sans_node

@@ -11,7 +11,7 @@ import { alerter, annoncer, el, vider } from "./dom.js";
 import "./sections-projet.js";
 import { suivreChargement } from "./synthese.js";
 import { heureCourte, lireInstant } from "./temps.js";
-import { initialiserTiroir, majTiroir } from "./tiroir.js";
+import { fermerTiroir, initialiserTiroir, majTiroir } from "./tiroir.js";
 
 const MOTIF_JETON = /^[A-Za-z0-9_-]{16,128}$/;
 const PERIODE_MS = 30000;
@@ -83,6 +83,8 @@ function sessionRemplacee() {
   }
   arreter();
   jeton = null;
+  // Tiroir fermé par son seul chemin (`close`) : retiré ouvert, il laisserait la marge de 30 rem.
+  fermerTiroir();
   const racine = document.getElementById("racine");
   vider(racine);
   const ecran = ecranSessionRemplacee();

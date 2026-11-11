@@ -81,6 +81,10 @@ function surFermeture() {
   }
   if (cible === null) {
     cible = document.querySelector("main");
+    // `main` n'est pas focalisable de lui-même : sans `tabindex`, le focus tomberait sur `body`.
+    if (cible && cible.getAttribute("tabindex") === null) {
+      cible.setAttribute("tabindex", "-1");
+    }
   }
   if (cible) {
     cible.focus();

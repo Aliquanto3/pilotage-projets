@@ -949,3 +949,30 @@ process.stdout.write(JSON.stringify({{ etapes, lectures: i }}));
         ["identique", ["Nouvelle attente : projet-b"]],
         ["tiroir", 1, "projet-b", "tiroir-ouvert"],
     ]
+
+
+@sans_node
+def test_session_remplacee_ferme_le_tiroir_et_rend_la_marge():
+    from tests.test_web_tiroir import executer
+
+    lectures = [_donnees(["projet-a"])]
+    sortie = executer(f"""
+const lectures = {json.dumps(lectures)};
+let statut = 200;
+window.fetch = async () => ({{ status: statut,
+  json: async () => ({{ ok: true, donnees: lectures[0] }}) }});
+window.location.hash = "#" + "a".repeat(20);
+let horloge = 100000;
+Date.now = () => horloge;
+const racine = new N("div"); racine.id = "racine"; body.append(racine);
+await import({json.dumps((WEB / "app.js").as_uri())});
+await tour(10);
+parClasse(racine, "nom-projet").find((b) => texte(b) === "projet-a").click();
+const avant = [parBalise(racine, "dialog").length, racine.className];
+const dialog = parBalise(racine, "dialog")[0];
+statut = 401;
+horloge += 31000; window.periodique(); await tour(10);
+process.stdout.write(JSON.stringify({{ avant, apres: [dialog.open, racine.className,
+  parBalise(racine, "dialog").length] }}));
+""")
+    assert sortie == {"avant": [1, "tiroir-ouvert"], "apres": [False, "", 0]}

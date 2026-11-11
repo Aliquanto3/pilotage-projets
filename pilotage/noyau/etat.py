@@ -459,7 +459,9 @@ def criteres(depot: Mapping) -> list[dict]:
     """
     tag = depot.get("tag")
     commits = depot.get("commits") or {}
-    hors_neutres = sum(n for t, n in commits.items() if t not in _COMMITS_NEUTRES)
+    comptes = [n for t, n in commits.items() if t not in _COMMITS_NEUTRES]
+    commits_restants = any(comptes)  # même test que `critere_manquant`
+    hors_neutres = sum(n for n in comptes if n > 0)
     stories = depot.get("stories_ouvertes", 0)
     ci = depot.get("ci", "aucune")
     precision_stories = None
@@ -467,10 +469,10 @@ def criteres(depot: Mapping) -> list[dict]:
         precision_stories = _pluriel(stories, "story ouverte", "stories ouvertes")
     elif depot.get("sprint_status") == "absent":
         precision_stories = SANS_SPRINT_STATUS
-    precision_commits = _pluriel(hors_neutres, "commit", "commits") if hors_neutres else None
+    precision_commits = _pluriel(hors_neutres, "commit", "commits") if hors_neutres > 0 else None
     etats = {
         "release": (tag is not None, tag),
-        "commits": (not hors_neutres, precision_commits),
+        "commits": (not commits_restants, precision_commits),
         "stories": (stories <= 0, precision_stories),
         "prs": (depot.get("prs_ouvertes", 0) <= 0, None),
         "ci": (ci == "verte", None if ci == "verte" else _PRECISIONS_CI.get(ci, "aucune CI")),

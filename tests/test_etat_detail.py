@@ -180,3 +180,12 @@ def test_assembler_rend_un_detail_par_projet_a_part_des_cartes():
     assert list(r["details"]) == ["a", "b"]
     assert r["details"]["b"] == etat.detail(projets["b"], PARIS)
     assert all("sessions" not in c and "criteres" not in c for c in r["cartes"])
+
+
+@pytest.mark.parametrize("commits", [{"feat": 2, "fix": -2}, {"fix": -1}])
+def test_criteres_suit_critere_manquant_meme_sur_des_comptes_negatifs(commits):
+    # hors schéma (`instantane` refuse n < 0) : le critère des commits suit `any`, comme lui
+    d = depot(commits=commits)
+    assert etat.critere_manquant(d) == "commits-depuis-release"
+    rendu = {c["code"]: c for c in etat.criteres(d)}["commits"]
+    assert rendu["rempli"] is False
