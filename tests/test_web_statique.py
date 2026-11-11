@@ -166,7 +166,34 @@ def test_constructions_permises_ne_sont_pas_signalees(sain):
 def test_modules_presents():
     noms = {chemin.name for chemin in MODULES}
     assert {"app.js", "dom.js", "temps.js", "barre.js", "bandeaux.js", "cle.js", "accueil.js",
-            "chantiers.js"} <= noms
+            "chantiers.js", "tiroir.js", "sections-projet.js", "types.js"} <= noms
+
+
+def test_textes_exacts_du_tiroir_et_des_chantiers():
+    """Textes vides et titres de la story 4.7 (EXPERIENCE § State Patterns)."""
+    sections = (WEB / "sections-projet.js").read_text(encoding="utf-8")
+    for texte in ('"Aucune session connue."', '"Hors chantier."',
+                  '"Faits du dépôt non relus. Lancez un scan."', '"pas de sprint-status.yaml"',
+                  '"Sessions par PC"', '"Critères de stabilité"', '"Chantier et dépendances"'):
+        assert texte in sections, texte
+    chantiers = (WEB / "chantiers.js").read_text(encoding="utf-8")
+    assert '"Découverts, à classer"' in chantiers and '"Hors chantier"' in chantiers
+    tiroir = (WEB / "tiroir.js").read_text(encoding="utf-8")
+    for texte in ('"Fermer"', '"(min-width: 80em)"', 'el("dialog", "tiroir")',
+                  'setAttribute("aria-labelledby", "tiroir-titre")', "Object.hasOwn(details, nom)"):
+        assert texte in tiroir, texte
+    app = (WEB / "app.js").read_text(encoding="utf-8")
+    assert 'import "./sections-projet.js";' in app
+    assert "initialiserTiroir({ hote: racine, page: racine, appeler, retrouver });" in app
+
+
+def test_css_du_tiroir_jetons_seulement():
+    css = (WEB / "appli.css").read_text(encoding="utf-8")
+    tiroir = css.split("dialog.tiroir {", 1)[1].split("}", 1)[0]
+    assert "box-shadow: var(--halo)" in tiroir and "var(--trait-fort)" in tiroir
+    assert "background: var(--voile)" in css.split("dialog.tiroir::backdrop {", 1)[1]
+    assert "animation: fondu-tiroir 150ms" in css
+    assert "white-space: pre-wrap" in css.split(".note-reprise {", 1)[1].split("}", 1)[0]
 
 
 @pytest.mark.parametrize("module", MODULES, ids=lambda chemin: chemin.name)

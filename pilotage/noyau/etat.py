@@ -1,7 +1,8 @@
 """Action calculée à partir des faits (AD-11, `etats-action.md`) : seul code qui l'applique.
 
 Pur, sans E/S. `calculer_action` rend le verdict d'un projet ; `assembler` rend une carte par
-projet, les colonnes triées, les cartes de chantier à part et tous les comptes de l'accueil.
+projet, les colonnes triées, les cartes de chantier à part, tous les comptes de l'accueil et le
+détail de chaque projet pour le tiroir (`detail`, `criteres`, story 4.7).
 
 Forme des faits d'un projet (un seul jeu par projet ; `noyau.assemblage` les produit pour tous
 les PC) :
@@ -25,6 +26,7 @@ from collections.abc import Mapping
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from typing import NamedTuple
 
+from pilotage.noyau import faits as noyau_faits
 from pilotage.noyau import heuristique
 from pilotage.noyau import texte as noyau_texte
 
@@ -418,6 +420,131 @@ def _dernier_tour(faits: Mapping) -> tuple[str | None, str | None]:
     return (pc, date_) if date_ else (None, None)
 
 
+# --- Détail du tiroir (story 4.7) -------------------------------------------------------------
+
+# Cinq critères de stabilité, dans l'ordre de `etats-action.md` : (code, libellé).
+LIBELLES_CRITERE = (
+    ("release", "une release publiée"),
+    ("commits", "aucun commit hors docs/chore depuis la release"),
+    ("stories", "aucune story ouverte"),
+    ("prs", "aucune PR ouverte"),
+    ("ci", "CI de main verte"),
+)
+# Code de `CRITERES` (rendu par `critere_manquant`) -> code du critère non rempli.
+CRITERE_DU_CODE = {
+    "pas-de-release": "release", "commits-depuis-release": "commits",
+    "story-ouverte": "stories", "pr-ouverte": "prs",
+    "ci-rouge": "ci", "pas-de-ci": "ci", "ci-en-cours": "ci",
+}
+_PRECISIONS_CI = {"rouge": "rouge", "en_cours": "en cours"}
+SANS_SPRINT_STATUS = "pas de sprint-status.yaml"
+# Statuts de session affichés au tiroir : code -> texte (`sans-nouvelles` : texte avec le PC).
+TEXTES_STATUT = {
+    "attend": "en attente", "active": "active", "finie": "finie",
+    "arretee": "arrêtée sans fin propre",
+}
+
+
+def _pluriel(n: int, un: str, plusieurs: str) -> str:
+    return f"{n} {un if n == 1 else plusieurs}"
+
+
+def criteres(depot: Mapping) -> list[dict]:
+    """Les cinq critères de stabilité : `{code, libelle, rempli, precision}` (`LIBELLES_CRITERE`).
+
+    Mêmes règles que `critere_manquant` : le premier critère non rempli est celui qu'il rend.
+    `precision` : le tag (release publiée), « 4 commits », « 1 story ouverte », « rouge »,
+    « en cours », « aucune CI », « pas de sprint-status.yaml » (critère des stories rempli faute
+    de fichier) ; None sinon.
+    """
+    tag = depot.get("tag")
+    commits = depot.get("commits") or {}
+    hors_neutres = sum(n for t, n in commits.items() if t not in _COMMITS_NEUTRES)
+    stories = depot.get("stories_ouvertes", 0)
+    ci = depot.get("ci", "aucune")
+    precision_stories = None
+    if stories > 0:
+        precision_stories = _pluriel(stories, "story ouverte", "stories ouvertes")
+    elif depot.get("sprint_status") == "absent":
+        precision_stories = SANS_SPRINT_STATUS
+    precision_commits = _pluriel(hors_neutres, "commit", "commits") if hors_neutres else None
+    etats = {
+        "release": (tag is not None, tag),
+        "commits": (not hors_neutres, precision_commits),
+        "stories": (stories <= 0, precision_stories),
+        "prs": (depot.get("prs_ouvertes", 0) <= 0, None),
+        "ci": (ci == "verte", None if ci == "verte" else _PRECISIONS_CI.get(ci, "aucune CI")),
+    }
+    return [
+        {"code": code, "libelle": libelle, "rempli": etats[code][0], "precision": etats[code][1]}
+        for code, libelle in LIBELLES_CRITERE
+    ]
+
+
+def _statut_session(session: Mapping) -> dict:
+    """Statut affiché d'une session, par les mêmes aides que `calculer_action`."""
+    if _attente_valide(session) is not None:
+        code = "attend"
+    elif _finie(session):
+        code = "finie"
+    elif session.get("vivante"):
+        code = "active"
+    elif session.get("distante"):
+        pc = session.get("pc") or "?"
+        return {"code": "sans-nouvelles", "texte": f"sans nouvelles de {pc}"}
+    else:
+        code = "arretee"
+    return {"code": code, "texte": TEXTES_STATUT[code]}
+
+
+def _session_affichee(session: Mapping) -> dict:
+    """Liste blanche : ni identifiant de session, ni dossier, ni pid (la reprise a sa route)."""
+    return {
+        "pc": session.get("pc") or "?",
+        "statut": _statut_session(session),
+        "debut": _texte_ou_none(session.get("debut")),
+        "dernier_tour": _texte_ou_none(session.get("dernier_tour")),
+        "fin": _texte_ou_none(session.get("fin")),
+        "branche": _texte_ou_none(session.get("branche")),
+        "note": _texte_ou_none(session.get("reprise")),
+    }
+
+
+def _depot_affiche(depot: Mapping) -> dict:
+    """Liste blanche des faits du dépôt ; commits dans l'ordre de `TYPES_COMMIT`, zéros omis."""
+    commits = depot["commits"]
+    return {
+        "tag": depot.get("tag"),
+        "commits": {t: commits[t] for t in noyau_faits.TYPES_COMMIT if commits.get(t)},
+        "prs_ouvertes": depot["prs_ouvertes"],
+        "stories_ouvertes": depot["stories_ouvertes"],
+        "ci": depot.get("ci"),
+        "sprint_status": depot.get("sprint_status"),
+    }
+
+
+def detail(faits: Mapping, fuseau: tzinfo) -> dict:
+    """Détail d'un projet pour le tiroir : `{sessions, depot, depot_de, criteres}`.
+
+    `sessions` : liste blanche (`_session_affichee`), triées par PC (casefold) puis la plus
+    récente d'abord ; `depot` : faits du dépôt lisibles (`_depot_affiche`) ou None ; `criteres` :
+    `criteres(depot)`, None sans faits de dépôt lisibles. Les heures restent en ISO UTC : le web
+    les rend dans le fuseau du navigateur. `fuseau` est vérifié comme dans `calculer_action`.
+    """
+    if not isinstance(fuseau, tzinfo):
+        raise ValueError("detail : `fuseau` doit être un tzinfo")
+    sessions = sorted(_sessions(faits), key=_plus_recent, reverse=True)
+    sessions.sort(key=lambda s: str(s.get("pc") or "?").casefold())  # stable : PC, puis récente
+    depot = faits.get("depot")
+    lisible = _depot_lisible(depot)
+    return {
+        "sessions": [_session_affichee(s) for s in sessions],
+        "depot": _depot_affiche(depot) if lisible else None,
+        "depot_de": faits.get("depot_de"),
+        "criteres": criteres(depot) if lisible else None,
+    }
+
+
 def _carte(nom: str, genre: str, verdict: Action, **en_plus: object) -> dict:
     return {
         "nom": nom, "genre": genre, "action": verdict.action, "raison": verdict.raison,
@@ -449,15 +576,18 @@ def assembler(
 ) -> dict:
     """Cartes de projet, colonnes triées, chantiers et comptes (AD-11 amendé, story 4.8).
 
-    Retourne `{"cartes", "colonnes", "chantiers", "comptes"}` :
+    Retourne `{"cartes", "colonnes", "chantiers", "comptes", "details"}` :
     - `cartes` : une carte par projet, triée par nom (casefold, puis nom brut) ;
     - `colonnes` : `{action: [cartes de projet]}` dans l'ordre de `ACTIONS` (toutes présentes),
       triées par `_cle_colonne` puis par nom ;
-    - `chantiers` : une carte par chantier non vide, triée par nom ; elle porte l'action, la
+    - `chantiers` : une carte par chantier non vide, triée par action (ordre de `ACTIONS`) puis
+      par nom (AD-11 : le tri est au noyau, story 4.7) ; elle porte l'action, la
       raison, le *quoi*, le type et la famille de son dépôt le plus urgent (à égalité, premier
       par nom) et la liste `projets` de ses dépôts ;
     - `comptes` : `actions`, `types` (cartes Attend), `familles` (ordre de `FAMILLES`, zéros
-      omis), `pcs_tourne` (`{pc: n}`), `suivis` (projets) et `stables`.
+      omis), `pcs_tourne` (`{pc: n}`), `suivis` (projets) et `stables` ;
+    - `details` : `{nom: detail(faits)}` par projet, à part des cartes (leur empreinte ne bouge
+      pas quand seules les heures d'une session changent).
     `pc` et `depuis` : PC et horodatage de l'attente retenue (Attend) ; `pc` et `dernier_tour` :
     PC et date de la session la plus récente (À relancer, la clé de tri) ; None ailleurs.
     """
@@ -487,6 +617,7 @@ def assembler(
             {**tete, "nom": nom, "genre": "chantier", "chantier": nom, "projets": liste}
         )
     chantiers.sort(key=_par_nom)
+    chantiers.sort(key=lambda c: ACTIONS.index(c["action"]))  # stable : action, puis nom
 
     def trier(action: str) -> list[dict]:
         # tris stables sur des cartes déjà rangées par nom : date (décroissante pour Tourne),
@@ -501,4 +632,7 @@ def assembler(
         "colonnes": colonnes,
         "chantiers": chantiers,
         "comptes": _comptes(colonnes, projets),
+        "details": {
+            c["nom"]: detail(faits_par_projet[c["nom"]], fuseau) for c in projets
+        },
     }

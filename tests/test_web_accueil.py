@@ -188,7 +188,8 @@ def test_colonne_attend_compteur_cartes_et_ordre():
     assert h3["t"] == "h3" and h3["k"][0]["x"] == "Vous attend : "
     assert "masque" in h3["k"][0]["c"]
     bouton = h3["k"][1]
-    assert bouton["t"] == "button" and bouton["a"]["aria-disabled"] == "true"
+    # le nom ouvre le tiroir (story 4.7) : plus d'aria-disabled
+    assert bouton["t"] == "button" and bouton["a"] == {"type": "button"}
     # *quoi* vide : aucun texte de remplacement, aucun paragraphe
     alpha = _classe(colonne, "carte-attend")[1]
     assert not _classe(alpha, "quoi")
@@ -267,12 +268,17 @@ def test_relancer_tourne_rien_et_etiquettes():
                             "à classer"]
     assert rel["k"][-1]["c"] == "carte-reprise"
     tou = _classe(racine, "colonne-tourne")[0]
+    assert _textes(_classe(tou, "carte-nom")[0]) == ["Tourne : ", "tou"]
     assert "pc-b · abcd1234 · 06/11 10:00" in _textes(tou)
     assert not _classe(tou, "carte-reprise")
     rie = _classe(racine, "colonne-rien-a-faire")[0]
     (ligne,) = _classe(rie, "ligne-rien")
-    assert _textes(ligne) == ["rie", "à classer"]  # « à classer » une seule fois
-    assert [m["t"] for m in _tous(racine) if m["t"] == "button"] == ["button", "button"]
+    # « à classer » une seule fois
+    assert _textes(ligne) == ["Rien à faire : ", "rie", "à classer"]
+    # un bouton de nom par carte et ligne, sans aria-disabled, plus « Afficher » de Rien à faire
+    boutons = [m for m in _tous(racine) if m["t"] == "button"]
+    assert [_textes(b) for b in boutons] == [["rel"], ["tou"], ["Afficher"], ["rie"]]
+    assert all("aria-disabled" not in b["a"] for b in boutons)
 
 
 @sans_node
@@ -416,15 +422,16 @@ def test_focus_suit_la_carte_et_retombe_sur_le_titre_de_colonne():
         # Beta change de texte : nœud remplacé, le focus passe au bouton du nouveau nœud.
         f"rendre({_js(_etat([a, {**b, 'quoi': 'autre'}], types))});"
         "const suit = document.activeElement === bouton('Beta') && li('Beta') !== noeud;"
-        # Beta passe dans Tourne : plus de bouton, focus sur le titre de sa colonne.
+        # Beta passe dans Tourne : le focus suit son bouton dans sa nouvelle colonne (4.7).
         f"rendre({_js(_etat([a, {**b, 'action': 'tourne'}], {'test': 1}))});"
-        "const titre = document.activeElement.a.id;"
+        "const titre = document.activeElement === bouton('Beta')"
+        "  && parClasse(r, 'colonne-tourne')[0].contains(document.activeElement);"
         # Alpha disparaît à son tour : focus sur le titre de sa colonne.
         "bouton('Alpha').focus();"
         f"rendre({_js(_etat([], {}))});"
         "process.stdout.write(JSON.stringify({ suit, titre, fin: document.activeElement.a.id }));"
     )
-    assert sortie == {"suit": True, "titre": "titre-tourne", "fin": "titre-attend-utilisateur"}
+    assert sortie == {"suit": True, "titre": True, "fin": "titre-attend-utilisateur"}
 
 
 
@@ -617,8 +624,8 @@ def test_rien_a_faire_icone_et_motif():
     ]
     racine = _rendre(_etat(cartes))
     lignes = _classe(racine, "ligne-rien")
-    assert [_textes(li) for li in lignes] == [["p", "pause jusqu'au 12/11"], ["s", "stable"],
-                                              ["c", "à classer"]]
+    assert [_textes(li)[1:] for li in lignes] == [["p", "pause jusqu'au 12/11"],
+                                                  ["s", "stable"], ["c", "à classer"]]
     assert [[i["c"] for i in _classe(li, "icone-motif")] for li in lignes] == [
         ["icone-motif icone-motif-pause"], ["icone-motif icone-motif-stable"],
         ["icone-motif icone-motif-a-classer"]]
@@ -630,7 +637,7 @@ def test_rien_a_faire_icone_et_motif():
 def test_rien_a_faire_famille_hors_liste_sans_icone(famille):
     racine = _rendre(_etat([_carte("p", "rien-a-faire", famille=famille)]))
     (ligne,) = _classe(racine, "ligne-rien")
-    assert _textes(ligne) == ["p", "raison"]
+    assert _textes(ligne) == ["Rien à faire : ", "p", "raison"]
     assert not [n for n in _tous(ligne) if n["t"] == "svg" or "icone-motif" in n["c"]]
 
 
@@ -646,7 +653,7 @@ def test_rien_a_faire_ordre_conserve_et_noeuds_gardes():
         "process.stdout.write(JSON.stringify({ ordre: parClasse(liste, 'carte-nom').map(nomDe),"
         "  gardes: li('R1') === avant.a && li('R2') === avant.b }));"
     )
-    assert sortie == {"ordre": ["R2", "R1"], "gardes": True}
+    assert sortie == {"ordre": ["Rien à faire : R2", "Rien à faire : R1"], "gardes": True}
 
 
 @sans_node
@@ -732,61 +739,49 @@ def test_css_repli_survol_et_tuiles():
         assert f"var(--{role})" in regles[f".chiffre-{action}"]
 
 
+def _hausse(avant, noms):
+    url = (WEB / "accueil.js").as_uri()
+    script = (FAUX_DOM + f"const m = await import({json.dumps(url)});"
+              f"process.stdout.write(JSON.stringify(m.texteHausse({json.dumps(avant)}, "
+              f"{json.dumps(noms)})));")
+    sortie = subprocess.run([NODE, "--input-type=module", "-e", script], capture_output=True,
+                            text=True, encoding="utf-8", timeout=30, check=True)
+    return json.loads(sortie.stdout)
+
+
 @sans_node
-def test_annonce_hausse_attend_au_rafraichissement_automatique_seulement():
-    a = _carte("projet-a", "attend-utilisateur", quoi="q")
-    b = _carte("projet-b", "attend-utilisateur", quoi="q")
-    c = _carte("claude-config", "attend-utilisateur", quoi="q")
-    d = _carte("autre", "a-relancer")
-    sortie = _suite(
-        "const etapes = [];"
-        "const noter = (nom) => etapes.push([nom, annonces.length ? annonces[annonces.length - 1]"
-        "  : null, annonces.length]);"
-        f"rendre({_js(_etat([a]))}, auto);"  # premier chargement : silence
-        "noter('premier');"
-        f"rendre({_js(_etat([a, d]))}, auto);"  # autre colonne : silence
-        "noter('autre colonne');"
-        f"rendre({_js(_etat([a, b]))}, auto);"
-        "noter('hausse');"
-        f"rendre({_js(_etat([a, b]))}, auto);"  # identique : silence
-        "noter('identique');"
-        f"rendre({_js(_etat([b]))}, auto);"  # baisse : silence
-        "noter('baisse');"
-        f"rendre({_js(_etat([b, a, c]))}, auto);"
-        "noter('deux');"
-        f"rendre({_js(_etat([b]))}, auto);"
-        f"rendre({_js(_etat([b, c]))});"  # action de l'utilisateur (pas d'option) : silence
-        "noter('action');"
-        f"rendre({_js(_etat([b, c, a]))}, {{ annoncer: false }});"
-        "noter('action explicite');"
-        # un départ et deux arrivées : hausse de 1, les deux arrivées sont nommées
-        f"rendre({_js(_etat([a]))}, auto);"
-        f"rendre({_js(_etat([b, c]))}, auto);"
-        "noter('remplacement');"
-        "process.stdout.write(JSON.stringify(etapes));"
-    )
-    assert sortie == [
-        ["premier", None, 0],
-        ["autre colonne", None, 0],
-        ["hausse", "Nouvelle attente : projet-b", 1],
-        ["identique", "Nouvelle attente : projet-b", 1],
-        ["baisse", "Nouvelle attente : projet-b", 1],
-        ["deux", "Nouvelles attentes : projet-a, claude-config", 2],
-        ["action", "Nouvelles attentes : projet-a, claude-config", 2],
-        ["action explicite", "Nouvelles attentes : projet-a, claude-config", 2],
-        ["remplacement", "Nouvelles attentes : projet-b, claude-config", 3],
-    ]
+@pytest.mark.parametrize(("avant", "noms", "attendu"), [
+    (None, ["projet-a"], None),  # premier chargement
+    (["projet-a"], ["projet-a"], None),  # identique
+    (["projet-a", "projet-b"], ["projet-b"], None),  # baisse
+    (["projet-a"], ["projet-a", "projet-b"], "Nouvelle attente : projet-b"),
+    (["projet-b"], ["projet-b", "projet-a", "claude-config"],
+     "Nouvelles attentes : projet-a, claude-config"),
+    # un départ et deux arrivées : hausse de 1, les deux arrivées sont nommées
+    (["projet-a"], ["projet-b", "claude-config"], "Nouvelles attentes : projet-b, claude-config"),
+    ([], [], None),
+    ("x", ["a"], None),  # forme inattendue : rien
+])
+def test_texte_hausse(avant, noms, attendu):
+    assert _hausse(avant, noms) == attendu
 
 
 @sans_node
 @pytest.mark.parametrize("hostile", HOSTILES)
-def test_annonce_d_un_nom_hostile_reste_du_texte(hostile):
+def test_texte_hausse_d_un_nom_hostile_reste_du_texte(hostile):
+    assert _hausse([], [hostile]) == f"Nouvelle attente : {hostile}"
+
+
+@sans_node
+def test_rendre_accueil_n_annonce_plus_rien():
+    a = _carte("projet-a", "attend-utilisateur", quoi="q")
+    b = _carte("projet-b", "attend-utilisateur", quoi="q")
     sortie = _suite(
-        f"rendre({_js(_etat([]))}, auto);"
-        f"rendre({_js(_etat([_carte(hostile, 'attend-utilisateur', quoi=hostile)]))}, auto);"
+        f"rendre({_js(_etat([a]))}, auto);"
+        f"rendre({_js(_etat([a, b]))}, auto);"
         "process.stdout.write(JSON.stringify(annonces));"
     )
-    assert sortie == [f"Nouvelle attente : {hostile}"]
+    assert sortie == []
 
 
 def _lecture(contexte):
@@ -815,12 +810,12 @@ def test_lecture_automatique(contexte, attendu):
 
 def test_app_ne_demande_l_annonce_que_hors_action_utilisateur():
     app = (WEB / "app.js").read_text(encoding="utf-8")
-    assert re.search(r"rendreVue\(\{ annoncer: lectureAutomatique\(\{\s*premiere: premiereLecture,"
+    assert re.search(r"const automatique = lectureAutomatique\(\{\s*premiere: premiereLecture,"
                      r" actionUtilisateur: annoncerLecture \|\| lancement,"
                      r"\s*cycle: suivi \? suivi\.motif"
                      r" : null,", app)
-    assert app.index("rendreVue({ annoncer") < app.index("suivreCycle(donnees.cycle)")
-    assert "vue(contenu, etat, new Date(), options)" in app
+    assert app.index("const automatique") < app.index("suivreCycle(donnees.cycle)")
+    assert "vue(contenu, etat, new Date())" in app
 
 
 def test_attente_sans_description_retiree():
@@ -891,3 +886,66 @@ def test_changement_de_nom_reecrit_titre_et_cartes_sans_perdre_le_titre():
     )
     assert sortie == {"t1": "Vous attend, 1 projet", "t2": "Attend Camille, 1 projet",
                       "meme": True, "carte": False, "prefixe": "Attend Camille : "}
+
+
+# --- Story 4.7 : annonce décidée par app.js, quel que soit l'onglet ------------------------------
+
+
+def _donnees(attentes):
+    """`/api/etat` du noyau : un projet par nom de `attentes` dans Attend, plus un stable."""
+    depot = {"tag": "v1.0.0", "commits": {}, "prs_ouvertes": 0, "ci": "verte", "topics": [],
+             "stories_ouvertes": 0, "sprint_status": "present", "run": "aucun"}
+    base = {"categorie": "classé", "pause": None, "depot": depot, "attente": None,
+            "sessions": [], "chantier": "Zeta"}
+    projets = {"stable": base}
+    for nom in attentes:
+        projets[nom] = {**base, "attente": {"origine": "marqueur", "type": "test", "quoi": "q",
+                                            "depuis": "2026-11-06T09:00:00Z"}}
+    rendu = etat.assembler(projets, datetime(2026, 11, 6, 12, 0, tzinfo=UTC), UTC)
+    return json.loads(json.dumps({**rendu, "dependances": [], "fraicheur": [], "alertes": [],
+                                  "cycle": None, "utilisateur": ""}))
+
+
+@sans_node
+def test_app_annonce_la_hausse_pendant_chantiers_une_fois():
+    from tests.test_web_tiroir import executer
+
+    lectures = [_donnees(["projet-a"]), _donnees(["projet-a", "projet-b"]),
+                _donnees(["projet-a", "projet-b"])]
+    sortie = executer(f"""
+const lectures = {json.dumps(lectures)};
+let i = 0;
+window.fetch = async () => ({{ status: 200,
+  json: async () => ({{ ok: true, donnees: lectures[Math.min(i++, lectures.length - 1)] }}) }});
+window.location.hash = "#" + "a".repeat(20);
+let horloge = 100000;
+Date.now = () => horloge;
+const racine = new N("div"); racine.id = "racine"; body.append(racine);
+await import({json.dumps((WEB / "app.js").as_uri())});
+await tour(10);
+const onglet = (nom) => parBalise(racine, "button").find((b) => texte(b) === nom).click();
+const etapes = [["premier", [...F.annonces]]];
+onglet("Chantiers");
+await tour(10);
+horloge += 31000; window.periodique(); await tour(10);
+etapes.push(["hausse sur Chantiers", [...F.annonces]]);
+onglet("Projets");
+await tour(10);
+etapes.push(["retour sur Projets", [...F.annonces]]);
+horloge += 31000; window.periodique(); await tour(10);
+etapes.push(["identique", [...F.annonces]]);
+// le nom d'une carte ouvre le tiroir unique de l'appli
+const bouton = parClasse(racine, "nom-projet").find((b) => texte(b) === "projet-b");
+bouton.click();
+etapes.push(["tiroir", parBalise(racine, "dialog").length, parClasse(racine, "tiroir-titre")[0].x,
+  racine.className]);
+process.stdout.write(JSON.stringify({{ etapes, lectures: i }}));
+""")
+    assert sortie["lectures"] == 3
+    assert sortie["etapes"] == [
+        ["premier", []],
+        ["hausse sur Chantiers", ["Nouvelle attente : projet-b"]],
+        ["retour sur Projets", ["Nouvelle attente : projet-b"]],
+        ["identique", ["Nouvelle attente : projet-b"]],
+        ["tiroir", 1, "projet-b", "tiroir-ouvert"],
+    ]

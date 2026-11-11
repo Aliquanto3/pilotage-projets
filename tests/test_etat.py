@@ -220,7 +220,8 @@ def test_assemblage_chantier_et_colonnes():
 
 def test_assemblage_vide():
     r = etat.assembler({}, MAINTENANT, PARIS)
-    assert (r["cartes"], r["chantiers"]) == ([], [])
+    assert list(r) == ["cartes", "colonnes", "chantiers", "comptes", "details"]
+    assert (r["cartes"], r["chantiers"], r["details"]) == ([], [], {})
     assert r["comptes"] == {
         "actions": dict.fromkeys(etat.ACTIONS, 0), "types": {}, "familles": {},
         "pcs_tourne": {}, "suivis": 0, "stables": 0,
@@ -291,3 +292,20 @@ def test_libelle_action_autres_actions_sans_nom():
     for action in (etat.A_RELANCER, etat.TOURNE, etat.RIEN):
         assert etat.libelle_action(action, "Camille") == etat.LIBELLES_ACTION[action]
     assert etat.libelle_action(etat.ATTEND) == "Vous attend"
+
+
+def test_chantiers_tries_par_action_puis_par_nom():
+    attente = {"origine": "marqueur", "type": "test", "quoi": "q"}
+    projets = {
+        "a1": faits(chantier="alpha"),  # stable : Rien à faire
+        "b1": faits(chantier="Beta", depot=depot(prs_ouvertes=1)),  # À relancer
+        "c1": faits(chantier="charlie", attente=attente),  # Attend
+        "d1": faits(chantier="delta"),  # Rien à faire
+        "e1": faits(chantier="Echo", depot=depot(tag=None)),  # À relancer
+        "e2": faits(chantier="Echo", attente=attente),  # Attend : le chantier prend Attend
+    }
+    r = etat.assembler(projets, MAINTENANT, PARIS)
+    assert [(c["nom"], c["action"]) for c in r["chantiers"]] == [
+        ("charlie", "attend-utilisateur"), ("Echo", "attend-utilisateur"),
+        ("Beta", "a-relancer"), ("alpha", "rien-a-faire"), ("delta", "rien-a-faire"),
+    ]
