@@ -79,9 +79,10 @@ function relireStockage() {
 // `{ jeton, origine }` ou null. Le fragment (effacé de la barre d'adresse dans tous les cas)
 // l'emporte sur le stockage, qui est vidé dans tous les cas.
 function lireCle() {
+  // Stockage vidé d'abord : il l'est même si `replaceState` lève.
+  const gardee = relireStockage();
   const brut = window.location.hash.slice(1);
   window.history.replaceState(null, "", window.location.pathname + window.location.search);
-  const gardee = relireStockage();
   if (MOTIF_JETON.test(brut)) {
     return { jeton: brut, origine: "fragment" };
   }
@@ -92,6 +93,8 @@ function lireCle() {
 }
 
 // Le jeton ne passe en stockage qu'au déchargement, sauf après un arrêt.
+// Risque résiduel accepté (AD-14) : `pagehide` ne distingue pas rechargement et fermeture ; la
+// restauration d'un onglet fermé (Ctrl+Maj+T, reprise de session) reprend donc la clé.
 function surPageHide() {
   if (arrete || jeton === null) {
     return;

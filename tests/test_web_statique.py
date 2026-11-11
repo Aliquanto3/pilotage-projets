@@ -28,6 +28,8 @@ INTERDITS = (
     (r"\blocalStorage\b", "localStorage"),
     (r"\bcookie\b", "cookie"),
     (r"\bbeforeunload\b", "beforeunload"),
+    # Aucun accès par crochets aux objets globaux (contournement de sessionStorage, cookie…).
+    (r"\b(?:window|globalThis|self|document)\s*\[", "accès par crochets à un objet global"),
     # Fin de ligne permise : l'appel coupé est jugé une fois recollé (`_joindre_suites`).
     (rf"\.setAttribute(?:NS)?\s*\((?!\s*(?:{LITTERAL}\s*,|$))", "setAttribute : nom non littéral"),
     (r"""\.setAttribute(?:NS)?\s*\(\s*["']on""", "setAttribute : nom en on*"),
@@ -68,19 +70,24 @@ def _joindre_suites(source: str) -> str:
     return re.sub(r"([.(\[=,])[ \t]*\n\s*", r"\1", source)
 
 
-STOCKAGE_PERMIS = re.compile(
-    r"""\bsessionStorage\s*\.\s*(?:getItem|removeItem)\(\s*["']pilotage-cle["']\s*\)"""
-    r"""|\bsessionStorage\s*\.\s*setItem\(\s*["']pilotage-cle["']\s*,"""
-)
+# Seules lignes (indentation retirée) qui peuvent toucher `sessionStorage`, et seulement dans
+# app.js : la valeur relue ne va que dans `valeur`, l'écriture ne prend que `jeton`.
+STOCKAGE_PERMIS = frozenset({
+    'valeur = window.sessionStorage.getItem("pilotage-cle");',
+    'window.sessionStorage.removeItem("pilotage-cle");',
+    'window.sessionStorage.setItem("pilotage-cle", jeton);',
+})
 
 
 def _stockage(source: str, fichier: str) -> list[str]:
-    """`sessionStorage` : seulement dans app.js, seulement avec la clé littérale pilotage-cle."""
+    """`sessionStorage` (ou un nom en `…Storage` construit) : seulement dans app.js, seulement
+    par les appels exacts permis ; `localStorage` relève de sa propre règle."""
     trouves = []
     for numero, ligne in enumerate(source.splitlines(), start=1):
-        for m in re.finditer(r"\bsessionStorage\b", ligne):
-            if fichier != "app.js" or not STOCKAGE_PERMIS.match(ligne, m.start()):
-                trouves.append(f"{numero}: sessionStorage")
+        if re.search(r"Storage\b", ligne) and not re.search(r"\blocalStorage\b", ligne) and (
+            fichier != "app.js" or ligne.strip() not in STOCKAGE_PERMIS
+        ):
+            trouves.append(f"{numero}: sessionStorage")
     return trouves
 
 
@@ -182,8 +189,17 @@ def test_constructions_permises_ne_sont_pas_signalees(sain):
     ("source", "fichier", "attendu"),
     [
         ('window.sessionStorage.setItem("pilotage-cle", jeton);', "app.js", []),
-        ('window.sessionStorage.getItem("pilotage-cle");', "app.js", []),
-        ("window.sessionStorage.removeItem('pilotage-cle');", "app.js", []),
+        ('    valeur = window.sessionStorage.getItem("pilotage-cle");', "app.js", []),
+        ('window.sessionStorage.removeItem("pilotage-cle");', "app.js", []),
+        ('alerter(window.sessionStorage.getItem("pilotage-cle"));', "app.js",
+         ["1: sessionStorage"]),
+        ('window.sessionStorage.setItem("pilotage-cle", autre);', "app.js", ["1: sessionStorage"]),
+        ('const n = "session" + "Storage";', "app.js", ["1: sessionStorage"]),
+        ('window["session" + "Storage"].getItem(x);', "app.js",
+         ["1: accès par crochets à un objet global", "1: accès calculé sur un nom construit",
+          "1: sessionStorage"]),
+        ("globalThis[nom].getItem(x);", "app.js", ["1: accès par crochets à un objet global"]),
+        ("document[nom] = x;", "dom.js", ["1: accès par crochets à un objet global"]),
         ('window.sessionStorage.setItem("pilotage-cle", jeton);', "cle.js", ["1: sessionStorage"]),
         ('window.sessionStorage.setItem("autre", jeton);', "app.js", ["1: sessionStorage"]),
         ("window.sessionStorage.getItem(nom);", "app.js", ["1: sessionStorage"]),
