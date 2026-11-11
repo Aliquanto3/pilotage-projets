@@ -19,9 +19,9 @@ def test_arborescence_structural_seed():
 
 
 def test_version_et_pyproject():
-    assert (RACINE_DEPOT / "VERSION").read_text(encoding="utf-8") == "0.3.0\n"
+    assert (RACINE_DEPOT / "VERSION").read_text(encoding="utf-8") == "0.4.0\n"
     projet = tomllib.loads((RACINE_DEPOT / "pyproject.toml").read_text(encoding="utf-8"))
-    assert projet["project"]["version"] == "0.3.0"
+    assert projet["project"]["version"] == "0.4.0"
     assert projet["project"]["requires-python"] == ">=3.14,<3.15"
     assert projet["project"]["dependencies"] == []
     assert projet["dependency-groups"]["outils"] == ["pyyaml==6.0.3"]

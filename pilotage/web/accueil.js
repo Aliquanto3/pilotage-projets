@@ -1,4 +1,4 @@
-// Accueil kanban (onglet Projets, stories 4.5, 4.6 et 4.11, FR30, UX-DR2, DR3, DR6, DR7, DR8, DR9,
+// Accueil kanban (onglet Projets, stories 4.5, 4.6, 4.7 et 4.11, FR5, FR30, UX-DR2, DR3, DR6, DR7, DR8, DR9,
 // DR15, DR19, DR21, DR25).
 //
 // Texte non fiable (AD-15) : le *quoi*, les noms, les raisons, les PC et les étiquettes sont posés
@@ -8,10 +8,11 @@
 // Aucun attribut n'est tiré des données. Les comptes viennent de `/api/etat` (AD-11) : rien n'est
 // compté ici, hormis la longueur de chaque colonne pour sa tuile.
 
-import { annoncer, el, vider } from "./dom.js";
+import { el, vider } from "./dom.js";
 import { creerTete, titreAttente } from "./synthese.js";
 import { depuisCourt, depuisVieillissante, etiquetteFraicheur, heureCourte, lireInstant } from "./temps.js";
-import { TYPES, icone, pastilleType } from "./types.js";
+import { ouvrirTiroir } from "./tiroir.js";
+import { TYPES, icone, listeEtiquettes, pastilleType } from "./types.js";
 
 const COLONNES = [
   { action: "attend-utilisateur", titre: "Vous attend", vide: "Personne ne vous attend." },
@@ -76,47 +77,22 @@ function texteDe(valeur) {
   return typeof valeur === "string" && valeur !== "" ? valeur : null;
 }
 
-// Étiquettes non interactives (EXPERIENCE § Component Patterns) : « message en attente » (champ
-// `message_en_attente`, alimenté par la story 5.6), « pas cloné ici », « à classer ».
-function etiquettes(carte) {
-  const textes = [];
-  if (carte.message_en_attente === true) {
-    textes.push("message en attente");
-  }
-  if (carte.clone_ici === false) {
-    textes.push("pas cloné ici");
-  }
-  // « à classer » une seule fois : pas en étiquette quand c'est déjà la raison affichée.
-  if (carte.categorie === "découvert, à classer" && !(carte.raison && carte.raison.code === "a-classer")) {
-    textes.push("à classer");
-  }
-  if (textes.length === 0) {
-    return null;
-  }
-  const liste = el("ul", "etiquettes");
-  for (const texte of textes) {
-    const item = el("li");
-    item.append(el("span", "etiquette", texte));
-    liste.append(item);
-  }
-  return liste;
-}
-
 function ajouterEtiquettes(noeud, carte) {
-  const liste = etiquettes(carte);
+  const liste = listeEtiquettes(carte);
   if (liste !== null) {
     noeud.append(liste);
   }
 }
 
-// Nom du projet : un vrai bouton, précédé de l'action en texte masqué. Le tiroir de la story 4.7
-// l'ouvrira : d'ici là, il reste atteignable au clavier et annoncé « indisponible ».
+// Nom du projet : un vrai bouton, précédé de l'action en texte masqué ; il ouvre le tiroir de
+// détail (story 4.7), qui rend le focus à ce bouton à sa fermeture. `Entrée` le clique.
 function titreCarte(prefixe, carte) {
   const titre = el("h3", "carte-nom");
   titre.append(el("span", "masque", prefixe));
-  const bouton = el("button", "btn-lien nom-projet", nomDe(carte));
+  const nom = nomDe(carte);
+  const bouton = el("button", "btn-lien nom-projet", nom);
   bouton.setAttribute("type", "button");
-  bouton.setAttribute("aria-disabled", "true");
+  bouton.addEventListener("click", () => ouvrirTiroir(nom, bouton));
   titre.append(bouton);
   return titre;
 }
@@ -228,7 +204,7 @@ function carteTourne(carte) {
   const params = carte.raison && carte.raison.params ? carte.raison.params : {};
   const parties = [params.pc, params.session, params.dernier_etat]
     .filter((p) => typeof p === "string" && p !== "");
-  article.append(el("h3", "carte-nom", nomDe(carte)));
+  article.append(titreCarte("Tourne : ", carte));
   article.append(el("p", "meta", parties.length > 0 ? parties.join(" · ") : raisonDe(carte)));
   ajouterEtiquettes(article, carte);
   return dansItem(article);
@@ -243,7 +219,7 @@ function ligneRien(carte) {
     motif.append(icone(trace, `icone-motif icone-motif-${carte.famille}`));
   }
   motif.append(el("span", null, raisonDe(carte)));
-  ligne.append(el("h3", "carte-nom", nomDe(carte)), motif);
+  ligne.append(titreCarte("Rien à faire : ", carte), motif);
   ajouterEtiquettes(ligne, carte);
   return dansItem(ligne);
 }
@@ -474,7 +450,7 @@ function creerContexte(conteneur, repli) {
   const ctx = {
     titre: el("h2", "masque", "Projets"),
     chargement: el("p", "neutre", "Chargement…"), grille: el("div", "kanban"),
-    colonnes: COLONNES.map((def) => creerColonne(def, repli)), attend: null,
+    colonnes: COLONNES.map((def) => creerColonne(def, repli)),
   };
   ajuster(ctx.grille, ctx.colonnes.map((c) => c.section));
   return ctx;
@@ -487,25 +463,46 @@ export function lectureAutomatique({ premiere, actionUtilisateur, cycle }) {
   return !premiere && !actionUtilisateur && (cycle === null || cycle === undefined || cycle === "observe");
 }
 
-// « Nouvelle attente : projet-a » ou « Nouvelles attentes : projet-a, projet-b » : les projets entrés dans
-// Attend, si le compte de la colonne augmente. Un seul message, qui remplace le précédent.
-function annoncerHausse(avant, noms) {
-  if (avant === null || noms.length <= avant.length) {
-    return;
+// Texte de l'annonce d'une hausse d'Attend (story 4.11) : « Nouvelle attente : projet-a » ou
+// « Nouvelles attentes : projet-a, projet-b », les projets entrés dans Attend si le compte de la
+// colonne augmente ; null sinon (premier chargement : `avant` null). Pure : app.js décide quand
+// l'annoncer (story 4.7), quel que soit l'onglet affiché.
+export function texteHausse(avant, noms) {
+  if (!Array.isArray(avant) || !Array.isArray(noms) || noms.length <= avant.length) {
+    return null;
   }
   const connus = new Set(avant);
   const nouveaux = noms.filter((nom) => !connus.has(nom));
   if (nouveaux.length === 1) {
-    annoncer(`Nouvelle attente : ${nouveaux[0]}`);
-  } else if (nouveaux.length > 1) {
-    annoncer(`Nouvelles attentes : ${nouveaux.join(", ")}`);
+    return `Nouvelle attente : ${nouveaux[0]}`;
   }
+  if (nouveaux.length > 1) {
+    return `Nouvelles attentes : ${nouveaux.join(", ")}`;
+  }
+  return null;
+}
+
+// Bouton du nom d'un projet dans l'accueil rendu dans `conteneur`, ou null (retour du focus à la
+// fermeture du tiroir quand son bouton d'origine a été remplacé).
+export function boutonNom(conteneur, nom) {
+  const ctx = CONTEXTES.get(conteneur);
+  if (ctx === undefined) {
+    return null;
+  }
+  const cle = cleCarte({ genre: "projet", nom });
+  for (const col of ctx.colonnes) {
+    const trouvee = col.cartes.get(cle);
+    if (trouvee) {
+      return trouvee.noeud.querySelector(".nom-projet");
+    }
+  }
+  return null;
 }
 
 // etat : données de /api/etat, ou null tant qu'elles ne sont pas arrivées. maintenant : horloge
-// des heures relatives (« hier 09:05 »), injectée par les tests. options.annoncer : vrai pour une
-// relecture du rafraîchissement automatique (voir `lectureAutomatique`).
-export function rendreAccueil(conteneur, etat, maintenant = new Date(), options = {}) {
+// des heures relatives (« hier 09:05 »), injectée par les tests. L'annonce d'une hausse d'Attend
+// est décidée par app.js (`texteHausse`, story 4.7).
+export function rendreAccueil(conteneur, etat, maintenant = new Date()) {
   let repli = REPLIS.get(conteneur);
   if (repli === undefined) {
     repli = { ouvert: false };
@@ -564,9 +561,4 @@ export function rendreAccueil(conteneur, etat, maintenant = new Date(), options 
     // Le bouton du repli focalisé a disparu (colonne vidée) : le titre de la colonne le reprend.
     colonneActive.h2.focus();
   }
-  const noms = lesCartes(COLONNES[0]).map(nomDe);
-  if (reutilise && options && options.annoncer === true) {
-    annoncerHausse(ctx.attend, noms);
-  }
-  ctx.attend = noms;
 }

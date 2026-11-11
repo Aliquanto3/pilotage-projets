@@ -2,14 +2,16 @@
 // relecture des données. Seul module qui tient le jeton, dans une variable et nulle part ailleurs
 // (AD-14, UX-DR17) : ni stockage du navigateur, ni DOM.
 
-import { lectureAutomatique, rendreAccueil } from "./accueil.js";
+import { boutonNom as boutonAccueil, lectureAutomatique, rendreAccueil, texteHausse } from "./accueil.js";
 import { construireBandeaux } from "./bandeaux.js";
 import { construireBarre } from "./barre.js";
-import { rendreChantiers } from "./chantiers.js";
+import { boutonNom as boutonChantiers, rendreChantiers } from "./chantiers.js";
 import { ecranClePerdue, ecranSessionRemplacee } from "./cle.js";
 import { alerter, annoncer, el, vider } from "./dom.js";
+import "./sections-projet.js";
 import { suivreChargement } from "./synthese.js";
 import { heureCourte, lireInstant } from "./temps.js";
+import { fermerTiroir, initialiserTiroir, majTiroir } from "./tiroir.js";
 
 const MOTIF_JETON = /^[A-Za-z0-9_-]{16,128}$/;
 const PERIODE_MS = 30000;
@@ -43,6 +45,9 @@ let minuteurPeriode = null;
 let chargement = null;
 let annoncerLecture = false;
 let premiereLecture = true;
+// Noms de la colonne Attend à la dernière lecture appliquée (null avant la première) : la hausse
+// s'annonce quel que soit l'onglet (story 4.7), sinon le retour sur Projets l'absorberait.
+let attendConnus = null;
 
 // Suivi d'un cycle (scan ou synchro) : motif "lance" (bouton), "deja" (409) ou "observe".
 let lancement = false;
@@ -78,6 +83,8 @@ function sessionRemplacee() {
   }
   arreter();
   jeton = null;
+  // Tiroir fermé par son seul chemin (`close`) : retiré ouvert, il laisserait la marge de 30 rem.
+  fermerTiroir();
   const racine = document.getElementById("racine");
   vider(racine);
   const ecran = ecranSessionRemplacee();
@@ -132,8 +139,7 @@ function majEtat(texte, annonce) {
   }
 }
 
-// options.annoncer : relecture du rafraîchissement automatique (story 4.11, annonce d'une hausse).
-function rendreVue(options = {}) {
+function rendreVue() {
   if (etat === null && !chargement.lent()) {
     // Avant 300 ms, ou premier chargement en échec : `main` vide, l'erreur est dans la barre
     // du haut ou un bandeau (State Patterns).
@@ -141,7 +147,7 @@ function rendreVue(options = {}) {
     return;
   }
   const vue = onglet === "chantiers" ? rendreChantiers : rendreAccueil;
-  vue(contenu, etat, new Date(), options);
+  vue(contenu, etat, new Date());
 }
 
 function texteFin(dernier) {
@@ -193,16 +199,35 @@ function suivreCycle(cycle) {
   }
 }
 
+function nomsAttend(donnees) {
+  const colonnes = donnees && donnees.colonnes ? donnees.colonnes : {};
+  const cartes = Array.isArray(colonnes["attend-utilisateur"]) ? colonnes["attend-utilisateur"] : [];
+  return cartes.map((c) => (c && typeof c.nom === "string" ? c.nom : ""));
+}
+
+// Bouton du même projet dans la vue courante (retour du focus à la fermeture du tiroir).
+function retrouver(nom) {
+  return onglet === "chantiers" ? boutonChantiers(contenu, nom) : boutonAccueil(contenu, nom);
+}
+
 function appliquer(donnees) {
   etat = donnees;
   chargement.finir();
   barre.majFraicheur(donnees.fraicheur, new Date());
   bandeaux.maj(donnees.alertes, locales);
+  rendreVue();
+  majTiroir(donnees);
   // Avant suivreCycle : la dernière lecture d'un cycle lancé par l'utilisateur porte encore son motif.
-  rendreVue({ annoncer: lectureAutomatique({
+  const automatique = lectureAutomatique({
     premiere: premiereLecture, actionUtilisateur: annoncerLecture || lancement,
     cycle: suivi ? suivi.motif : null,
-  }) });
+  });
+  const noms = nomsAttend(donnees);
+  const hausse = automatique ? texteHausse(attendConnus, noms) : null;
+  if (hausse !== null) {
+    annoncer(hausse);
+  }
+  attendConnus = noms;
   suivreCycle(donnees.cycle);
   premiereLecture = false;
 }
@@ -371,6 +396,7 @@ function demarrer() {
   contenu = el("main", "contenu");
   contenu.id = "contenu";
   racine.append(barre.element, bandeaux.element, contenu);
+  initialiserTiroir({ hote: racine, page: racine, appeler, retrouver });
   barre.majOnglet(onglet);
   bandeaux.maj([], []);
   // Réponse plus lente que 300 ms : espaces réservés et aria-busy jusqu'à la réponse (UX-DR15).

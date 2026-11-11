@@ -84,8 +84,8 @@ def test_etat_assemble_complet(scanne, serveur):
     assert reponse.status == 200
     donnees = _json(contenu)["donnees"]
     assert list(donnees) == [
-        "cartes", "colonnes", "chantiers", "comptes", "dependances", "fraicheur", "alertes",
-        "cycle", "utilisateur",
+        "cartes", "colonnes", "chantiers", "comptes", "details", "dependances", "fraicheur",
+        "alertes", "cycle", "utilisateur",
     ]
     assert list(donnees["colonnes"]) == list(noyau_etat.ACTIONS)
     assert donnees["chantiers"] == []
@@ -108,6 +108,15 @@ def test_etat_assemble_complet(scanne, serveur):
     assert donnees["dependances"] == []
     assert [f["pc"] for f in donnees["fraicheur"]] == ["pc-test"]
     assert donnees["alertes"] == []
+    # détail du tiroir (4.7) : à part des cartes, faits du dépôt et critères du noyau
+    assert list(donnees["details"]) == ["demo"]
+    detail = donnees["details"]["demo"]
+    assert list(detail) == ["sessions", "depot", "depot_de", "criteres"]
+    assert (detail["sessions"], detail["depot_de"]) == ([], None)
+    assert set(detail["depot"]) == {
+        "tag", "commits", "prs_ouvertes", "stories_ouvertes", "ci", "sprint_status"}
+    assert [c["code"] for c in detail["criteres"]] == ["release", "commits", "stories", "prs", "ci"]
+    assert "phase" not in detail and "etiquettes" not in detail
     assert donnees["cycle"] == serveur_etat.CYCLE_NEUTRE
     assert donnees["utilisateur"] == "Personne Test"  # nom affiché (story 7.2)
 

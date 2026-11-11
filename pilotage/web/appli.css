@@ -893,6 +893,13 @@ textarea:disabled,
   }
 }
 
+/* Tiroir ouvert (story 4.7) : l'accueil cède 30 rem ; 2 × 2 tant qu'il reste moins de 80 em. */
+@media (min-width: 80em) and (max-width: 109.999em) {
+  .tiroir-ouvert .kanban {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* « Rien à faire » (story 4.11) : sous 760 px, liste repliée derrière le bouton « Afficher » ;
    au-delà, le bouton est masqué et la liste toujours visible, quel que soit son état. */
 .repli-bouton {
@@ -915,6 +922,217 @@ textarea:disabled,
   .chiffre-tuile {
     font-size: var(--taille-titre-1);
   }
+}
+
+/* Pastilles d'action (story 4.7, DESIGN `pastille-attend`…) : couleurs des chiffres de tuile. */
+.pastille-action {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--espacement-2);
+  font-size: var(--taille-legende);
+  font-weight: var(--graisse-titres);
+  border-radius: var(--rayon-pilule);
+}
+
+.pastille-attend {
+  color: var(--accent-texte);
+  background: color-mix(in srgb, var(--accent-texte) 13%, var(--surface));
+}
+
+.pastille-relancer {
+  color: var(--alerte-texte);
+  background: color-mix(in srgb, var(--alerte-texte) 13%, var(--surface));
+}
+
+.pastille-tourne {
+  color: var(--succes);
+  background: color-mix(in srgb, var(--succes) 13%, var(--surface));
+}
+
+.pastille-rien,
+.pastille-neutre {
+  color: var(--texte-attenue);
+  background: var(--surface-alt);
+}
+
+/* Tiroir de détail (story 4.7, DESIGN `tiroir`) : 30 rem (480 px) à droite, fixé ; contour
+   `trait-fort` et halo (règle « Modale et menus » de la charte). Plein écran sous 80 em. */
+dialog.tiroir {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: var(--espacement-4);
+  overflow-y: auto;
+  color: var(--texte);
+  background: var(--surface);
+  border: var(--trait-largeur) solid var(--trait-fort);
+  border-radius: var(--rayon-grand);
+  box-shadow: var(--halo);
+}
+
+dialog.tiroir::backdrop {
+  background: var(--voile);
+}
+
+@media (min-width: 80em) {
+  dialog.tiroir {
+    inset: 0 0 0 auto;
+    width: 30rem;
+  }
+
+  /* La page entière (barre, bandeaux, accueil) cède 30 rem : rien n'est recouvert. */
+  .tiroir-ouvert {
+    margin-right: 30rem;
+  }
+}
+
+/* Fondu de 150 ms à l'ouverture, sous « mouvement non réduit » seulement. */
+@media (prefers-reduced-motion: no-preference) {
+  dialog.tiroir[open] {
+    animation: fondu-tiroir 150ms ease-out;
+  }
+}
+
+@keyframes fondu-tiroir {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tiroir-tete {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--espacement-3);
+}
+
+.tiroir-titre {
+  margin: 0;
+  font-family: var(--police-titres);
+  font-size: var(--taille-titre-4);
+  font-weight: var(--graisse-titres);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.tiroir-fermer,
+.nom-projet {
+  min-height: 24px;
+  min-width: 24px;
+}
+
+.tiroir-section-titre {
+  margin: var(--espacement-4) 0 var(--espacement-2);
+  font-size: var(--taille-grand);
+}
+
+.tiroir-bloc,
+.criteres,
+.bloc-chantier {
+  padding: var(--espacement-3);
+  background: var(--surface-alt);
+  border-radius: var(--rayon-grand);
+}
+
+.tiroir-bloc > p,
+.tiroir-etat {
+  margin: 0 0 var(--espacement-2);
+  overflow-wrap: anywhere;
+}
+
+.tiroir-etat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacement-2);
+}
+
+.tiroir-etat .pastille-type {
+  margin-top: 0;
+}
+
+.tiroir-pc {
+  margin: var(--espacement-3) 0 var(--espacement-1);
+  font-size: var(--taille-base);
+  overflow-wrap: anywhere;
+}
+
+.tiroir-pc:first-child {
+  margin-top: 0;
+}
+
+.sessions,
+.faits-depot,
+.criteres,
+.depots {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session + .session {
+  margin-top: var(--espacement-2);
+}
+
+.session-branche {
+  font-family: var(--police-code);
+}
+
+/* Note de reprise : texte libre déjà borné à l'écriture, affiché entier, retours à la ligne gardés. */
+.note-reprise {
+  margin: var(--espacement-1) 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.critere {
+  color: var(--texte);
+}
+
+/* Dépendances « A ← B » en police de commande, couleur atténuée (DESIGN `bloc-chantier`). */
+.dependance {
+  margin: var(--espacement-2) 0 0;
+  font-family: var(--police-code);
+  font-size: var(--taille-petit);
+  color: var(--texte-attenue);
+  overflow-wrap: anywhere;
+}
+
+/* Vue Chantiers (story 4.7) : un bloc par chantier, même fond que la colonne. */
+.chantiers {
+  display: grid;
+  gap: var(--espacement-4);
+}
+
+.bloc-chantier-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacement-2);
+  margin-bottom: var(--espacement-2);
+}
+
+.bloc-chantier-titre {
+  margin: 0;
+  font-size: var(--taille-grand);
+  overflow-wrap: anywhere;
+}
+
+.ligne-depot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacement-2);
+  padding: var(--espacement-1) 0;
+}
+
+.ligne-depot .nom-projet {
+  overflow-wrap: anywhere;
 }
 
 /* Mouvement réduit : ni transition ni animation. */

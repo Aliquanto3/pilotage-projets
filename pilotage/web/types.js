@@ -41,3 +41,59 @@ export function pastilleType(cle) {
   pastille.append(icone(type.trace, "icone-type"), el("span", "pastille-libelle", type.libelle));
   return pastille;
 }
+
+// Pastille d'action (tiroir, onglet Chantiers, story 4.7) : couleurs des chiffres de tuile
+// (DESIGN § Components, `pastille-attend`…). Table lue par `Map` : une action inconnue (ou
+// « constructor ») donne la pastille neutre. `libelle` : texte de la colonne, posé par textContent.
+const CLASSES_ACTION = new Map([
+  ["attend-utilisateur", "pastille-attend"],
+  ["a-relancer", "pastille-relancer"],
+  ["tourne", "pastille-tourne"],
+  ["rien-a-faire", "pastille-rien"],
+]);
+
+export function pastilleAction(action, libelle) {
+  const classe = CLASSES_ACTION.get(action) || "pastille-neutre";
+  return el("span", `pastille-action ${classe}`, libelle);
+}
+
+// Libellés des colonnes hors Attend (celui d'Attend : `titreAttente` de synthese.js).
+const LIBELLES_ACTION = new Map([
+  ["a-relancer", "À relancer"],
+  ["tourne", "Tourne"],
+  ["rien-a-faire", "Rien à faire"],
+]);
+
+// Libellé d'une action ; `attend` : libellé d'Attend (nom configuré) ; inconnue : "".
+export function libelleAction(action, attend) {
+  if (action === "attend-utilisateur") {
+    return attend;
+  }
+  return LIBELLES_ACTION.get(action) || "";
+}
+
+// Étiquettes non interactives d'une carte (EXPERIENCE § Component Patterns) : « message en
+// attente » (champ `message_en_attente`, alimenté par la story 5.6), « pas cloné ici », « à
+// classer » (pas quand c'est déjà la raison affichée). Partagées par l'accueil et le tiroir.
+export function listeEtiquettes(carte) {
+  const textes = [];
+  if (carte.message_en_attente === true) {
+    textes.push("message en attente");
+  }
+  if (carte.clone_ici === false) {
+    textes.push("pas cloné ici");
+  }
+  if (carte.categorie === "découvert, à classer" && !(carte.raison && carte.raison.code === "a-classer")) {
+    textes.push("à classer");
+  }
+  if (textes.length === 0) {
+    return null;
+  }
+  const liste = el("ul", "etiquettes");
+  for (const texte of textes) {
+    const item = el("li");
+    item.append(el("span", "etiquette", texte));
+    liste.append(item);
+  }
+  return liste;
+}
