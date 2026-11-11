@@ -28,7 +28,7 @@ Au plus 1 story en développement à la fois (les trois stories touchent le tiro
 - Stories du même écran : jamais dans la même vague. Fichiers d'état : seulement par une PR `chore/etat-run-*`, jamais dans une PR de story.
 - Suite complète : par la CI de branche ; en local, ruff et tests ciblés. Attente : `gh run watch <id> --interval 60 --exit-status`. Après fusion, vérifier `MERGED` avant de journaliser.
 - **Avant chaque push** : `uv run pytest -q tests/test_publication.py` vert (le dépôt est public).
-- Versions : `v0.4.0` à la fusion de 4.7 (fin de l'epic 4), `v0.5.0` à 5.6, `v1.0.0` à 6.5 (décision du 2026-11-11 : `v0.3.0` a servi à la bascule publique). Manifeste, tag annoté, release avec notes.
+- Versions : `v0.4.0` après la fusion de 4.7 et du correctif r-cle (fin de l'epic 4), `v0.5.0` à 5.6, `v1.0.0` à 6.5 (décision du 2026-11-11 : `v0.3.0` a servi à la bascule publique). Manifeste, tag annoté, release avec notes.
 - Heure du journal prise par `date`. `uv run python` sous Windows. Tests par `PILOTAGE_RACINE_LOCALE`, jamais dans les vrais dossiers ; dans chaque prompt d'agent : jamais de vrai sync, planificateur, `claude` ni `~/.claude`.
 
 ## Autorisations de l'utilisateur (2026-11-11 09:28)
@@ -43,6 +43,7 @@ Au plus 1 story en développement à la fois (les trois stories touchent le tiro
 |---|---|---|
 | V16 | recette de l'accueil (humaine) | 4.5, 4.6, 4.10, 4.11 |
 | V17 | 4.7 | 4.7 ← V16 |
+| V17b | r-cle | r-cle ← 4.7 (même `app.js`) ; tag `v0.4.0` après r-cle |
 | V18 | 5.5 | 5.5 ← 4.7 ; 5.5 ← 5.4 |
 | V19 | 5.6 | 5.6 ← 5.5 ; 5.6 ← 5.2 |
 
@@ -53,7 +54,7 @@ Attend. Report vers 5.6 : confirmer le champ `message_en_attente`, lu en proviso
 
 ## À faire par l'utilisateur
 
-1. **Recette de l'accueil « Coup d'œil » (V16, 20 min)** : bloque 4.7. Mode d'emploi donné en session le 2026-11-11 ; worktree `../_worktrees/recette-v030` (détaché sur `origin/main`, dépendances installées).
+- (rien pour l'instant ; recette de l'accueil faite le 2026-11-11)
 
 ## Journal
 
@@ -61,3 +62,7 @@ Attend. Report vers 5.6 : confirmer le champ `message_en_attente`, lu en proviso
 - 2026-11-11 09:28 · V16 · attente humaine · recette de l'accueil, worktree recette-v030 prêt · 9436d23
 - 2026-11-11 09:28 · 4.7 · décision · spec écrite pendant la recette (Opus) ; dev lancé après « recette accueil OK » · —
 - 2026-11-11 09:38 · 4.7 · décision · spec écrite (specs/4-7-tiroir-chantiers.md) : registre de sections dans tiroir.js, détails du projet par noyau/etat (clé details à part des cartes), tri des chantiers au noyau, annonce de hausse d'Attend dans app.js ; titre de l'epic passé à v0.4.0 · —
+- 2026-11-11 09:50 · run · fusion · PR d'état #2 (état, sprint status, spec 4.7), CI verte, MERGED vérifié · 67780d8
+- 2026-11-11 12:24 · V16 · attente humaine · recette de l'accueil validée par l'utilisateur, sauf l'écran « Clé d'accès perdue » au rechargement par le bouton du navigateur (comportement prévu, Flux 6) : décision en attente (message plus clair, ou clé gardée en sessionStorage) · 67780d8
+- 2026-11-11 12:24 · 4.7 · dev · lancé (Opus, story transverse noyau et web) · —
+- 2026-11-11 12:35 · r-cle · décision · accord de l'utilisateur : clé gardée en sessionStorage le temps d'un rechargement (écrite à pagehide, relue et effacée au chargement), AD-14 et EXPERIENCE amendés hors dépôt, spec specs/r-cle-rechargement.md ; vague V17b après 4.7, tag v0.4.0 après r-cle ; recette de l'accueil close · —
