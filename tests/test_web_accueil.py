@@ -458,9 +458,22 @@ def test_css_grille_responsive_et_mouvement_reduit():
     reduit = re.search(r"@media \(prefers-reduced-motion: reduce\)\s*\{(.*?)\n\}", css, re.S)
     assert reduit and "transition: none" in reduit.group(1)
     assert "animation: none" in reduit.group(1)
+    # Défilement : jamais horizontal (`overflow`, `overflow-x`, `overflow-inline`) ; vertical
+    # (`overflow-y`, `overflow-block`) seulement par exception nommée : le tiroir (4.7) et le
+    # brief de reprise (5.5, texte brut en pre-wrap, borné en hauteur).
+    defilement_vertical = {"appli.css": {"dialog.tiroir", "pre.brief"}}
+    vus = set()
     for feuille in WEB.glob("*.css"):
-        source = feuille.read_text(encoding="utf-8")
-        assert not re.search(r"overflow(-x)?:\s*(scroll|auto)", source), feuille.name
+        source = re.sub(r"/\*.*?\*/", "", feuille.read_text(encoding="utf-8"), flags=re.S)
+        permis = defilement_vertical.get(feuille.name, set())
+        for selecteurs, corps in re.findall(r"([^{}]+)\{([^{}]*)\}", source):
+            for axe, valeur in re.findall(r"(?<![\w-])overflow(-[a-z]+)?\s*:\s*([^;]*)", corps):
+                if not re.search(r"\b(scroll|auto)\b", valeur):
+                    continue
+                selecteur = " ".join(selecteurs.split())
+                assert axe in ("-y", "-block") and selecteur in permis, (feuille.name, selecteur)
+                vus.add(selecteur)
+    assert vus == {"dialog.tiroir", "pre.brief"}
 
 
 @sans_node
@@ -1162,8 +1175,8 @@ def _executer_reprise(corps: str, *, statut_sessions=200, mode="resume"):
                               "branche": None, "statut": "attente", "fin": None}]}
     reprise_ = {"commande": "commande-du-serveur", "mode": mode,
                 "brief": "20261106T101501Z-0a1b2c3d" if mode == "brief" else None,
-                "raison": None, "dossier": "D:\demo",
-                "chemin_brief": "C:\briefs\b.md" if mode == "brief" else None}
+                "raison": None, "dossier": "D:\\demo",
+                "chemin_brief": "C:\\briefs\\b.md" if mode == "brief" else None}
     return executer(f"""
 const requetes = [];
 const donnees = {json.dumps(_donnees(["projet-a"]))};
@@ -1236,9 +1249,11 @@ reprendre().click(); await tour(10);
 parClasse(dialog(), "voir-brief")[0].click(); await tour(10);
 const brief = requetes.find((r) => r[0].startsWith("/api/brief/"));
 process.stdout.write(JSON.stringify({ pre: parClasse(dialog(), "brief")[0].x,
-  chemin: brief[0], options: brief[1] }));
+  chemin: brief[0], options: brief[1],
+  cites: parClasse(dialog(), "chemin-reprise").map((c) => c.x) }));
 """, mode="brief")
     assert sortie["pre"] == "brief <b>brut</b>"
+    assert sortie["cites"] == ["Brief : C:\\briefs\\b.md"]
     assert sortie["chemin"] == "/api/brief/20261106T101501Z-0a1b2c3d"
     assert sortie["options"] == {"method": "GET", "cache": "no-store", "credentials": "omit",
                                  "headers": {"Authorization": "Bearer " + "a" * 20}}
