@@ -3,6 +3,9 @@
 
 export const SVG = "http://www.w3.org/2000/svg";
 
+// Serveur injoignable (statut 0) : texte commun à app.js et au panneau de reprise.
+export const TEXTE_INJOIGNABLE = "Serveur local injoignable. Relancez l'appli par lancer.py.";
+
 // Élément `balise`, avec sa classe et son texte (posé par textContent) s'ils sont donnés.
 export function el(balise, classe, texte) {
   const noeud = document.createElement(balise);

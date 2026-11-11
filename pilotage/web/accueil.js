@@ -97,9 +97,17 @@ function titreCarte(prefixe, carte) {
   return titre;
 }
 
-// Place de « Reprendre » sur la ligne du nom (bouton ajouté par la story 5.5) : vide d'ici là.
-function placeReprise() {
-  return el("div", "carte-reprise");
+// « Reprendre » sur la ligne du nom (story 5.5), dernier enfant de la carte : bouton secondaire
+// nommé « Reprendre <projet> » qui ouvre le tiroir sur sa section Reprise.
+function placeReprise(carte) {
+  const place = el("div", "carte-reprise");
+  const nom = nomDe(carte);
+  const bouton = el("button", "btn2 reprendre", "Reprendre");
+  bouton.setAttribute("type", "button");
+  bouton.append(el("span", "masque", ` ${nom}`));
+  bouton.addEventListener("click", () => ouvrirTiroir(nom, bouton, { section: "reprise" }));
+  place.append(bouton);
+  return place;
 }
 
 // PC « sans nouvelles » d'après la ligne de fraîcheur (même seuil que la barre du haut).
@@ -172,7 +180,7 @@ function carteAttend(carte, maintenant, fraicheur, titre) {
     article.append(ligneMeta(parties));
   }
   ajouterEtiquettes(article, carte);
-  article.append(placeReprise());
+  article.append(placeReprise(carte));
   return dansItem(article);
 }
 
@@ -194,7 +202,7 @@ function carteRelancer(carte, maintenant) {
     article.append(ligneMeta(parties));
   }
   ajouterEtiquettes(article, carte);
-  article.append(placeReprise());
+  article.append(placeReprise(carte));
   return dansItem(article);
 }
 

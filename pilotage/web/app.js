@@ -7,7 +7,8 @@ import { construireBandeaux } from "./bandeaux.js";
 import { construireBarre } from "./barre.js";
 import { boutonNom as boutonChantiers, rendreChantiers } from "./chantiers.js";
 import { ecranClePerdue, ecranSessionRemplacee } from "./cle.js";
-import { alerter, annoncer, el, vider } from "./dom.js";
+import { TEXTE_INJOIGNABLE, alerter, annoncer, el, vider } from "./dom.js";
+import "./reprise.js";
 import "./sections-projet.js";
 import { suivreChargement } from "./synthese.js";
 import { heureCourte, lireInstant } from "./temps.js";
@@ -19,7 +20,6 @@ const PERIODE_MS = 30000;
 const ECART_MIN_MS = 1000;
 
 const TEXTE_DEJA = "Une synchro tourne déjà. L'accueil se mettra à jour à sa fin.";
-const TEXTE_INJOIGNABLE = "Serveur local injoignable. Relancez l'appli par lancer.py.";
 const ALERTE_403 = {
   source: "page",
   code: "requete-refusee",
@@ -143,13 +143,19 @@ function sessionRemplacee(ecranDe = ecranSessionRemplacee) {
   }
 }
 
-// `{statut, corps}` ; statut 0 si le serveur est injoignable. 401 : session remplacée.
-async function appeler(methode, chemin) {
+// `{statut, corps}` ; statut 0 si le serveur est injoignable. 401 : session remplacée, ici seul.
+// `json` (objet) : envoyé en corps JSON. `texte: true` et statut 200 : `{statut, corps: null,
+// texte}` (brief en texte brut) ; tout autre statut est lu en JSON comme d'habitude.
+async function appeler(methode, chemin, { json, texte } = {}) {
+  const avecCorps = json !== undefined;
   let reponse;
   try {
     reponse = await window.fetch(chemin, {
       method: methode,
-      headers: { Authorization: `Bearer ${jeton}` },
+      headers: avecCorps
+        ? { Authorization: `Bearer ${jeton}`, "Content-Type": "application/json" }
+        : { Authorization: `Bearer ${jeton}` },
+      ...(avecCorps ? { body: JSON.stringify(json) } : {}),
       cache: "no-store",
       credentials: "omit",
     });
@@ -162,6 +168,13 @@ async function appeler(methode, chemin) {
     return { statut: 401, corps: null };
   }
   jetonAEprouver = null;
+  if (texte === true && reponse.status === 200) {
+    try {
+      return { statut: 200, corps: null, texte: await reponse.text() };
+    } catch {
+      return { statut: 0, corps: null };
+    }
+  }
   let corps = null;
   try {
     corps = await reponse.json();

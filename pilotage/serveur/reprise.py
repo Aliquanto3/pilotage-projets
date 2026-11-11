@@ -7,6 +7,8 @@
   Session d'un autre PC : brief écrit dans `attente/briefs/<id>.md` (création seule, jamais dans
   `donnees/`, donc jamais poussé), lu par une nouvelle session ; le brief n'est jamais dans la
   commande. Tout texte tiré d'une session ou d'un dépôt y est encadré par `cadrer_message`.
+  La réponse cite aussi `dossier` et `chemin_brief` (story 5.5) : le front n'extrait rien de la
+  commande.
 - `GET /api/brief/<id>` : brief trouvé par listage de `attente/briefs/` (jamais de chemin
   construit depuis l'entrée), servi en texte brut.
 
@@ -446,7 +448,10 @@ def purger_briefs(maintenant: datetime) -> None:
 
 
 def _sans_commande(raison: str) -> Reponse:
-    return Reponse(200, donnees={"commande": None, "mode": None, "brief": None, "raison": raison})
+    return Reponse(200, donnees={
+        "commande": None, "mode": None, "brief": None, "raison": raison,
+        "dossier": None, "chemin_brief": None,
+    })
 
 
 def _reprise(corps: bytes) -> Reponse:
@@ -476,6 +481,7 @@ def _reprise(corps: bytes) -> Reponse:
             return Reponse(400, erreur=str(exc))
         return Reponse(200, donnees={
             "commande": commande, "mode": "resume", "brief": None, "raison": None,
+            "dossier": str(dossier), "chemin_brief": None,
         })
     cles = dossiers_du_projet(projet)
     if session["dossier"] in cles:  # même dossier relatif que sur l'autre PC : préféré
@@ -492,7 +498,7 @@ def _reprise(corps: bytes) -> Reponse:
     id_, chemin = ecrire_brief(projet, session, dossier, pc)
     return Reponse(200, donnees={
         "commande": commande_brief(dossier, chemin), "mode": "brief", "brief": id_,
-        "raison": None,
+        "raison": None, "dossier": str(dossier), "chemin_brief": str(chemin),
     })
 
 

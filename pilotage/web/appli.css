@@ -1026,6 +1026,52 @@ dialog.tiroir::backdrop {
   min-width: 24px;
 }
 
+.reprendre,
+.panneau-reprise select {
+  min-height: 24px;
+  min-width: 24px;
+}
+
+/* Panneau de reprise (story 5.5) : sessions, commande du serveur, chemins cités, brief en texte
+   brut inerte, borné en hauteur et défilable au clavier (vertical seulement : pre-wrap). */
+.panneau-reprise,
+.resultat-reprise {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espacement-2);
+}
+
+.panneau-reprise > p,
+.resultat-reprise > p {
+  margin: 0;
+}
+
+.resultat-reprise,
+.resultat-reprise > .bloc-commande {
+  align-self: stretch;
+}
+
+.chemin-reprise {
+  font-family: var(--police-code);
+  font-size: var(--taille-petit);
+  overflow-wrap: anywhere;
+}
+
+pre.brief {
+  align-self: stretch;
+  margin: 0;
+  padding: var(--espacement-3);
+  font-family: var(--police-code);
+  font-size: var(--taille-petit);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--surface-alt);
+  border-radius: var(--rayon-moyen);
+  max-block-size: 20rem;
+  overflow-y: auto;
+}
+
 .tiroir-section-titre {
   margin: var(--espacement-4) 0 var(--espacement-2);
   font-size: var(--taille-grand);
