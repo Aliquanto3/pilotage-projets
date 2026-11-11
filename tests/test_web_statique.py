@@ -215,7 +215,50 @@ def test_session_storage_seulement_dans_app_js_avec_la_cle_litterale(source, fic
 def test_modules_presents():
     noms = {chemin.name for chemin in MODULES}
     assert {"app.js", "dom.js", "temps.js", "barre.js", "bandeaux.js", "cle.js", "accueil.js",
-            "chantiers.js", "tiroir.js", "sections-projet.js", "types.js"} <= noms
+            "chantiers.js", "tiroir.js", "sections-projet.js", "types.js", "reprise.js"} <= noms
+
+
+def test_textes_exacts_et_litteraux_interdits_du_panneau_de_reprise():
+    """Story 5.5 : textes d'EXPERIENCE ; la commande vient du serveur, jamais assemblée ici."""
+    reprise = (WEB / "reprise.js").read_text(encoding="utf-8")
+    for texte in (
+        '"Recherche des sessions…"', '"Aucune session à reprendre sur ce projet."',
+        '"Pas cloné sur ce PC. Clonez le dépôt sous Documents\\\\GitHub, puis relancez un scan."',
+        '"Dossier de la session introuvable sur ce PC. Choisissez une autre session ou relancez '
+        'un scan."',
+        '"Brief introuvable (purgé ou effacé). Fermez puis rouvrez le tiroir pour en préparer un '
+        'autre."',
+        "\"… (brief tronqué à l'affichage)\"", '"Session à reprendre"', '"Voir le brief"',
+        '"Masquer le brief"', '"Erreur du serveur local."', "BORNE_BRIEF = 32768",
+        'enregistrerSection({ id: "reprise", titre: "Reprise", rendre });',
+    ):
+        assert texte in reprise, texte
+    for interdit in ("claude", "--resume", "set-location", "clipboard"):
+        assert interdit not in reprise.casefold(), interdit
+    assert "maj" not in re.findall(r"enregistrerSection\(\{([^}]*)\}", reprise)[0]
+    app = (WEB / "app.js").read_text(encoding="utf-8")
+    dom = (WEB / "dom.js").read_text(encoding="utf-8")
+    assert 'import "./reprise.js";' in app
+    injoignable = ('TEXTE_INJOIGNABLE = "Serveur local injoignable. Relancez l' + "'"
+                   + 'appli par lancer.py."')
+    assert injoignable in dom and injoignable not in app
+    assert "TEXTE_INJOIGNABLE" in reprise
+    accueil = (WEB / "accueil.js").read_text(encoding="utf-8")
+    assert 'ouvrirTiroir(nom, bouton, { section: "reprise" })' in accueil
+
+
+def test_css_du_panneau_de_reprise():
+    css = (WEB / "appli.css").read_text(encoding="utf-8")
+    brief = css.split("pre.brief {", 1)[1].split("}", 1)[0]
+    for regle in ("white-space: pre-wrap", "overflow-wrap: anywhere", "max-block-size: 20rem",
+                  "overflow-y: auto", "background: var(--surface-alt)",
+                  "font-family: var(--police-code)"):
+        assert regle in brief, regle
+    chemin = css.split(".chemin-reprise {", 1)[1].split("}", 1)[0]
+    assert "font-family: var(--police-code)" in chemin and "overflow-wrap: anywhere" in chemin
+    cibles = css.split(".reprendre,\n.panneau-reprise select {", 1)[1].split("}", 1)[0]
+    assert "min-height: 24px" in cibles and "min-width: 24px" in cibles
+    assert "flex-direction: column" in css.split(".resultat-reprise {", 1)[1].split("}", 1)[0]
 
 
 def test_textes_exacts_du_tiroir_et_des_chantiers():

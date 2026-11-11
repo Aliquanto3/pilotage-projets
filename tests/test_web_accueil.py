@@ -193,16 +193,23 @@ def test_colonne_attend_compteur_cartes_et_ordre():
     # *quoi* vide : aucun texte de remplacement, aucun paragraphe
     alpha = _classe(colonne, "carte-attend")[1]
     assert not _classe(alpha, "quoi")
-    assert _textes(alpha) == ["Vous attend : ", "alpha", "à qualifier"]
+    assert _textes(alpha) == ["Vous attend : ", "alpha", "à qualifier", "Reprendre", " alpha"]
     assert [_textes(q) for q in _classe(colonne, "quoi")] == [
         ["mot de passe"], ["A ou B ?"], ["C ?"]]
     zeta = _classe(colonne, "carte-attend")[0]
     assert _textes(_classe(zeta, "meta")[0]) == ["pc-b", " · ", "depuis 09:05"]  # pas `pcs`
     assert not _classe(zeta, "depuis-vieillissante") and not _classe(zeta, "icone-sablier")
     assert "ch" not in _textes(zeta)  # plus d'étiquette de chantier
-    # « Reprendre » (5.5) : place réservée, vide, en dernier dans le DOM de la carte
-    assert all(a["k"][-1]["c"] == "carte-reprise" and a["k"][-1]["k"] == []
-               for a in _classe(colonne, "carte-attend"))
+    # « Reprendre » (5.5) : bouton secondaire seul dans sa place, en dernier dans le DOM de la carte
+    for a in _classe(colonne, "carte-attend"):
+        place = a["k"][-1]
+        assert place["c"] == "carte-reprise" and len(place["k"]) == 1
+        reprendre = place["k"][0]
+        assert (reprendre["t"], reprendre["c"], reprendre["a"]) == (
+            "button", "btn2 reprendre", {"type": "button"})
+        assert [(f["c"], f["x"]) for f in reprendre["k"]] == [
+            ("masque", f" {_textes(_classe(a, 'nom-projet')[0])[0]}")]
+        assert reprendre["x"] == "Reprendre"
 
 
 @sans_node
@@ -236,8 +243,8 @@ def test_texte_non_fiable_reste_du_texte(hostile):
         assert "href" not in n["a"] and "src" not in n["a"]
     # nom + quoi + PC (Attend) + détail de sa tuile, raison + PC (Relancer), PC (Tourne) + détail
     # de sa tuile, nom + motif (Rien), nom dans la phrase-synthèse (story 4.10) ; chantier, phase,
-    # famille et compte inconnus ne s'affichent pas
-    assert sum(hostile in n["x"] for n in noeuds) == 11
+    # famille et compte inconnus ne s'affichent pas ; nom masqué de « Reprendre » (Attend, 5.5)
+    assert sum(hostile in n["x"] for n in noeuds) == 12
     assert f"plus ancienne : {hostile}, hier 22:00" in _textes(racine)
     assert f"1 sur {hostile}" in _textes(racine)
     assert "1 arrêtée" in _textes(racine)  # famille hostile ignorée
@@ -265,19 +272,22 @@ def test_relancer_tourne_rien_et_etiquettes():
     # nom, raison, méta « PC · dernier tour » de la carte ; étiquettes sans chantier ni phase
     assert _textes(rel) == ["À relancer : ", "rel", "run bloqué", "pc-c", " · ",
                             "dernier tour hier 22:47", "message en attente", "pas cloné ici",
-                            "à classer"]
+                            "à classer", "Reprendre", " rel"]
     assert rel["k"][-1]["c"] == "carte-reprise"
+    assert _classe(rel["k"][-1], "reprendre")[0]["t"] == "button"
     tou = _classe(racine, "colonne-tourne")[0]
     assert _textes(_classe(tou, "carte-nom")[0]) == ["Tourne : ", "tou"]
     assert "pc-b · abcd1234 · 06/11 10:00" in _textes(tou)
-    assert not _classe(tou, "carte-reprise")
+    assert not _classe(tou, "carte-reprise") and not _classe(tou, "reprendre")
     rie = _classe(racine, "colonne-rien-a-faire")[0]
     (ligne,) = _classe(rie, "ligne-rien")
     # « à classer » une seule fois
     assert _textes(ligne) == ["Rien à faire : ", "rie", "à classer"]
     # un bouton de nom par carte et ligne, sans aria-disabled, plus « Afficher » de Rien à faire
     boutons = [m for m in _tous(racine) if m["t"] == "button"]
-    assert [_textes(b) for b in boutons] == [["rel"], ["tou"], ["Afficher"], ["rie"]]
+    assert [_textes(b) for b in boutons] == [["rel"], ["Reprendre", " rel"], ["tou"], ["Afficher"],
+                                             ["rie"]]
+    assert not _classe(rie, "reprendre")
     assert all("aria-disabled" not in b["a"] for b in boutons)
 
 
@@ -307,7 +317,9 @@ def test_aucune_troncature_css_ni_js():
                       ".carte", ".ligne-rien", ".tuile-detail", ".colonne-titre"):
         assert re.search(r"overflow-wrap:\s*anywhere", regles.get(selecteur, "")), selecteur
     # Seule exception nommée : app.js lit le fragment de l'URL (`#…`), pas une donnée affichée.
-    exceptions = {"app.js": ["window.location.hash.slice(1)"]}
+    # Story 5.5 : le brief (texte brut, déjà borné par le serveur) est borné à l'affichage.
+    exceptions = {"app.js": ["window.location.hash.slice(1)"],
+                  "reprise.js": ["brut.slice(0, fin)"]}
     for module in WEB.glob("*.js"):
         source = module.read_text(encoding="utf-8")
         for permis in exceptions.get(module.name, []):
@@ -446,9 +458,22 @@ def test_css_grille_responsive_et_mouvement_reduit():
     reduit = re.search(r"@media \(prefers-reduced-motion: reduce\)\s*\{(.*?)\n\}", css, re.S)
     assert reduit and "transition: none" in reduit.group(1)
     assert "animation: none" in reduit.group(1)
+    # Défilement : jamais horizontal (`overflow`, `overflow-x`, `overflow-inline`) ; vertical
+    # (`overflow-y`, `overflow-block`) seulement par exception nommée : le tiroir (4.7) et le
+    # brief de reprise (5.5, texte brut en pre-wrap, borné en hauteur).
+    defilement_vertical = {"appli.css": {"dialog.tiroir", "pre.brief"}}
+    vus = set()
     for feuille in WEB.glob("*.css"):
-        source = feuille.read_text(encoding="utf-8")
-        assert not re.search(r"overflow(-x)?:\s*(scroll|auto)", source), feuille.name
+        source = re.sub(r"/\*.*?\*/", "", feuille.read_text(encoding="utf-8"), flags=re.S)
+        permis = defilement_vertical.get(feuille.name, set())
+        for selecteurs, corps in re.findall(r"([^{}]+)\{([^{}]*)\}", source):
+            for axe, valeur in re.findall(r"(?<![\w-])overflow(-[a-z]+)?\s*:\s*([^;]*)", corps):
+                if not re.search(r"\b(scroll|auto)\b", valeur):
+                    continue
+                selecteur = " ".join(selecteurs.split())
+                assert axe in ("-y", "-block") and selecteur in permis, (feuille.name, selecteur)
+                vus.add(selecteur)
+    assert vus == {"dialog.tiroir", "pre.brief"}
 
 
 @sans_node
@@ -1135,3 +1160,115 @@ process.stdout.write(JSON.stringify({ titres: titres(), entetes }));
 process.stdout.write(JSON.stringify({ titres: titres(), entetes }));
 """, leve=True)
     assert sortie == {"titres": [TITRE_PERDUE], "entetes": []}
+
+
+# --- Story 5.5 : « Reprendre » et appels du panneau de reprise par app.js -----------------------
+
+
+def _executer_reprise(corps: str, *, statut_sessions=200, mode="resume"):
+    """app.js sous node : `fetch` routé par chemin, appels gardés dans `requetes`."""
+    from tests.test_web_tiroir import executer
+
+    sessions = {"projet": "projet-a", "pc": "pc-a", "clone_ici": True, "proposee": "s1",
+                "sessions": [{"session": "s1", "pc": "pc-b", "ce_pc": False,
+                              "debut": "2026-11-06T09:00:00Z", "dernier_tour": None,
+                              "branche": None, "statut": "attente", "fin": None}]}
+    reprise_ = {"commande": "commande-du-serveur", "mode": mode,
+                "brief": "20261106T101501Z-0a1b2c3d" if mode == "brief" else None,
+                "raison": None, "dossier": "D:\\demo",
+                "chemin_brief": "C:\\briefs\\b.md" if mode == "brief" else None}
+    return executer(f"""
+const requetes = [];
+const donnees = {json.dumps(_donnees(["projet-a"]))};
+const sessions = {json.dumps(sessions)};
+const reprise = {json.dumps(reprise_)};
+window.fetch = async (chemin, options) => {{
+  requetes.push([chemin, options]);
+  if (chemin.startsWith("/api/sessions/")) {{
+    return {{ status: {statut_sessions}, json: async () => ({{ ok: true, donnees: sessions }}) }};
+  }}
+  if (chemin === "/api/reprise") {{
+    return {{ status: 200, json: async () => ({{ ok: true, donnees: reprise }}) }};
+  }}
+  if (chemin.startsWith("/api/brief/")) {{
+    return {{ status: 200, text: async () => "brief <b>brut</b>",
+      json: async () => {{ throw new Error("pas du JSON"); }} }};
+  }}
+  return {{ status: 200, json: async () => ({{ ok: true, donnees }}) }};
+}};
+window.location.hash = "#" + "a".repeat(20);
+let horloge = 100000;
+Date.now = () => horloge;
+const racine = new N("div"); racine.id = "racine"; body.append(racine);
+await import({json.dumps((WEB / "app.js").as_uri())});
+const A = await import({json.dumps((WEB / "accueil.js").as_uri())});
+await tour(10);
+const dialog = () => parBalise(racine, "dialog")[0];
+const reprendre = () => parClasse(racine, "reprendre")[0];
+{corps}
+""")
+
+
+@sans_node
+def test_reprendre_ouvre_la_section_reprise_et_rend_le_focus():
+    sortie = _executer_reprise("""
+const bouton = reprendre();
+const contenu = parBalise(racine, "main")[0];
+const nom = A.boutonNom(contenu, "projet-a");
+bouton.click(); await tour(10);
+const section = parClasse(dialog(), "tiroir-section-reprise")[0];
+const titre = parClasse(dialog(), "tiroir-titre")[0];
+const ouvert = [dialog().open, titre.x, document.activeElement === titre, section.vus];
+parClasse(dialog(), "tiroir-fermer")[0].click(); await tour(10);
+const post = requetes.find((r) => r[0] === "/api/reprise")[1];
+
+process.stdout.write(JSON.stringify({ ouvert, rendu: document.activeElement === bouton,
+  nom: nom.className, nombre: parClasse(racine, "reprendre").length,
+  post: [post.method, post.headers, post.body],
+  get: requetes.find((r) => r[0].startsWith("/api/sessions/"))[1],
+  commandes: parClasse(dialog(), "commande").map((c) => c.x) }));
+""")
+    assert sortie["ouvert"] == [True, "projet-a", True, [{"block": "nearest"}]]
+    assert sortie["rendu"] is True
+    assert sortie["nom"] == "btn-lien nom-projet"
+    assert sortie["nombre"] == 1  # projet-a (Attend) seulement, pas la carte stable
+    assert sortie["post"] == ["POST", {"Authorization": "Bearer " + "a" * 20,
+                                       "Content-Type": "application/json"},
+                              json.dumps({"projet": "projet-a", "session": "s1", "pc": "pc-b"},
+                                         separators=(",", ":"))]
+    get = sortie["get"]
+    assert get["method"] == "GET" and get["headers"] == {"Authorization": "Bearer " + "a" * 20}
+    assert "body" not in get
+    assert sortie["commandes"] == ["commande-du-serveur"]
+
+
+@sans_node
+def test_appeler_en_mode_texte_lit_le_brief_brut():
+    sortie = _executer_reprise("""
+reprendre().click(); await tour(10);
+parClasse(dialog(), "voir-brief")[0].click(); await tour(10);
+const brief = requetes.find((r) => r[0].startsWith("/api/brief/"));
+process.stdout.write(JSON.stringify({ pre: parClasse(dialog(), "brief")[0].x,
+  chemin: brief[0], options: brief[1],
+  cites: parClasse(dialog(), "chemin-reprise").map((c) => c.x) }));
+""", mode="brief")
+    assert sortie["pre"] == "brief <b>brut</b>"
+    assert sortie["cites"] == ["Brief : C:\\briefs\\b.md"]
+    assert sortie["chemin"] == "/api/brief/20261106T101501Z-0a1b2c3d"
+    assert sortie["options"] == {"method": "GET", "cache": "no-store", "credentials": "omit",
+                                 "headers": {"Authorization": "Bearer " + "a" * 20}}
+
+
+@sans_node
+def test_401_sur_les_sessions_remplace_l_ecran_et_ferme_le_tiroir():
+    sortie = _executer_reprise("""
+reprendre().click();
+const d = dialog();
+await tour(10);
+process.stdout.write(JSON.stringify({ ouvert: d.open, marge: racine.className,
+  titres: parClasse(racine, "ecran-titre").map((h) => h.x),
+  dialogs: parBalise(racine, "dialog").length }));
+""", statut_sessions=401)
+    assert sortie == {"ouvert": False, "marge": "",
+                      "titres": ["Une autre fenêtre de l'appli a été ouverte. Fermez cet onglet."],
+                      "dialogs": 0}

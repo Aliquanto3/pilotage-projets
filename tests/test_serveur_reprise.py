@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -203,7 +204,9 @@ def test_reprise_ce_pc_commande_resume(serveur, scanne, lances):
     assert objet["donnees"] == {
         "commande": f"Set-Location -LiteralPath '{dossier}'; claude --resume {ICI}",
         "mode": "resume", "brief": None, "raison": None,
+        "dossier": str(dossier), "chemin_brief": None,
     }
+    assert f"'{objet['donnees']['dossier']}'" in objet["donnees"]["commande"]
     assert empreinte() == avant and briefs() == [] and lances == []
 
 
@@ -211,7 +214,10 @@ def test_reprise_ce_pc_dossier_disparu(serveur):
     ecrire_etat("pc-test", ICI, dossier="demo/disparu")
     statut, objet = poster(serveur, {"projet": "demo", "session": ICI, "pc": "pc-test"})
     assert (statut, objet["donnees"]["commande"]) == (200, None)
-    assert objet["donnees"]["raison"] == "dossier de la session introuvable"
+    assert objet["donnees"] == {
+        "commande": None, "mode": None, "brief": None,
+        "raison": "dossier de la session introuvable", "dossier": None, "chemin_brief": None,
+    }
 
 
 @pytest.mark.parametrize("apostrophe", ["'", "’", "‘"])
@@ -269,7 +275,12 @@ def test_reprise_autre_pc_ecrit_le_brief(serveur, scanne, lances):
     assert objet["donnees"] == {
         "commande": f"Set-Location -LiteralPath '{dossier}'; claude '{PROMPT.format(chemin)}'",
         "mode": "brief", "brief": id_, "raison": None,
+        "dossier": str(dossier), "chemin_brief": str(chemin),
     }
+    # Dossier et brief cités tels quels dans la commande ; brief sous attente/briefs/.
+    assert commande.startswith(f"Set-Location -LiteralPath '{objet['donnees']['dossier']}'; ")
+    assert objet["donnees"]["chemin_brief"] in commande
+    assert Path(objet["donnees"]["chemin_brief"]).parent == chemins.briefs()
     assert commande.count("'") == 4 and "\n" not in commande
     texte = chemin.read_text("utf-8")
     assert "Reprendre la passe 2" not in commande and "consignes" not in commande
@@ -346,6 +357,7 @@ def test_pas_clone_ici(serveur):
     assert statut == 200
     assert objet["donnees"] == {
         "commande": None, "mode": None, "brief": None, "raison": "pas cloné ici",
+        "dossier": None, "chemin_brief": None,
     }
     assert briefs() == []
 

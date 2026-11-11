@@ -46,6 +46,29 @@ export class N {
     };
   }
 
+  // `select` / `option` (story 5.5) : `value` d'un `select` = celle de l'option choisie ;
+  // `selectedIndex` vaut 0 par défaut dès qu'il y a une option, -1 sinon.
+  get options() { return this.k.filter((c) => c.t === "option"); }
+  get selectedIndex() {
+    if (this.si !== undefined && this.si < this.options.length) { return this.si; }
+    return this.options.length > 0 ? 0 : -1;
+  }
+  set selectedIndex(i) { this.si = Number(i); }
+  get value() {
+    if (this.t === "select") {
+      const o = this.options[this.selectedIndex];
+      return o ? o.value : "";
+    }
+    return this.v === undefined ? "" : this.v;
+  }
+  set value(v) {
+    if (this.t === "select") {
+      this.si = this.options.findIndex((o) => o.value === String(v));
+      return;
+    }
+    this.v = String(v);
+  }
+
   setAttribute(n, v) { this.a[n] = String(v); }
   getAttribute(n) { return Object.hasOwn(this.a, n) ? this.a[n] : null; }
   removeAttribute(n) { delete this.a[n]; }
