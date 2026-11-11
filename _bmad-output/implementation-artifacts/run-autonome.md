@@ -88,3 +88,27 @@ Attend. Report vers 5.6 : confirmer le champ `message_en_attente`, lu en proviso
 - 2026-11-11 13:24 · 5.5 · dev · lancé (Opus, serveur et web) · —
 - 2026-11-11 13:30 · run · CI · main verte sur a24104f (après #3 et #4) · a24104f
 - 2026-11-11 13:30 · run · décision · tag annoté v0.4.0 et release publiés (fin de l'epic 4 : 4.7 et r-cle) · a24104f
+- 2026-11-11 13:36 · v0.4.0 · fusion · runtime v0.4.0 publié dans claude-config (publier_config depuis le tag, 99 fichiers, porte test_sync_ps1 19 passés), PR #7 fusionnée, MERGED vérifié ; réinstallation des PC laissée à l'utilisateur · 50771aa
+- 2026-11-11 13:36 · 5.5 · dev · fini : reprise.js (cinq cas, POST à l'affichage, réponses tardives filtrées, brief borné à 32768), bouton Reprendre, appeler avec corps JSON et lecture texte, POST /api/reprise rend dossier et chemin_brief ; gardes CSS et troncature retouchées (exception nommée) ; 404 tests ciblés · d7dfb74
+- 2026-11-11 13:36 · 5.5 · second-avis · lancé (Haiku) · —
+- 2026-11-11 13:39 · 5.5 · PR · #6 ouverte · d7dfb74
+- 2026-11-11 13:39 · 5.5 · second-avis · rien de high ; 1 medium (garde CSS aveugle à overflow-y), 2 low (POST et brief écrit à chaque ouverture du tiroir, littéraux de fixture corrompus), 1 nit ; commande, textContent, C4, dossier et chemin_brief vérifiés sans défaut · d7dfb74
+- 2026-11-11 13:39 · 5.5 · review · lancée (Opus), liste du second avis transmise · —
+- 2026-11-11 13:42 · run · fusion · PR d'état #5, CI verte, MERGED vérifié · ee874ef
+- 2026-11-11 13:48 · 5.5 · review · passe 1 : 1 Important corrigé (garde CSS par règle : horizontal refusé partout, vertical seulement pour dialog.tiroir et pre.brief, trou préexistant de 4.7 fermé), 1 low corrigé (littéraux de fixture échappés, chemin du brief vérifié) ; POST à chaque ouverture gardé (Reprise visible dès l'ouverture, Flux 2) ; écarts du dev acceptés ; tests seuls touchés, 337 tests ciblés ; pas de passe 2 · 1f125af
+- 2026-11-11 13:57 · 5.6 · décision · spec écrite (specs/5-6-messages-reglages.md) : aucun bouton principal ajouté ; validation front de confort, serveur seul juge ; réglages affichés « En attente de synchro » d'après /api/operations, sans mise à jour optimiste ; message_en_attente confirmé, calculé par serveur/etat ; extensions sans nouvelle route (message_en_attente, chantiers_connus, pause dans detail) ; v0.5.0 ; epic corrigé · —
+- 2026-11-11 13:57 · 5.6 · décision · options de la spec retenues, à relire par l'utilisateur : message à tous les PC lu dès le premier PC (étiquette retirée alors) ; exclusion non réversible depuis l'appli (édition de projets.yaml, dit à la confirmation) · —
+- 2026-11-11 13:57 · 5.6 · report · GET /api/operations sans filtre par projet et boite/ jamais purgée : rejoint le report « purge des acquittements » · —
+- 2026-11-11 14:00 · 5.5 · CI · verte (PR #6) · 1f125af
+- 2026-11-11 14:00 · 5.5 · fusion · #6 fusionnée (squash), MERGED vérifié · 81dba42
+- 2026-11-11 14:00 · 5.6 · dev · lancé (Opus, serveur, noyau et web ; story à risque côté messages) · —
+- 2026-11-11 14:17 · 5.6 · dev · fini : operations.js (lecture partagée de la file), boite.js, reglages.js, 202 traité comme synchro lancée, message_en_attente et chantiers_connus dans /api/etat, pause dans detail ; v0.5.0 ; aucune garde assouplie · c1c4e50
+- 2026-11-11 14:17 · 5.6 · second-avis · lancé (Haiku) · —
+- 2026-11-11 14:21 · 5.6 · PR · #7 ouverte · c1c4e50
+- 2026-11-11 14:21 · 5.6 · second-avis · rien de high ; 2 medium (/api/etat en 500 si la clé donnees est invalide ; boîte entière relue à chaque /api/etat), 5 low (dont message tous PC lu au premier PC, décision retenue) ; textContent, C4, double envoi, exclusion confirmée, pas d'optimisme vérifiés · c1c4e50
+- 2026-11-11 14:21 · 5.6 · review · lancée (Opus), liste du second avis transmise · —
+- 2026-11-11 14:40 · 5.6 · review · passe 1 : 0 Important ; n°1 préexistant (lire_etat lève déjà sur clé donnees invalide, 500 voulu), n°2 mesuré (1 000 messages et 2 000 acquittements en 37 ms) et reporté avec la purge de la boîte ; 5 nits corrigés (zone en lecture seule pendant l'envoi, contrôles rétablis si le projet réapparaît, options du chantier recréées seulement si la liste change, pause en liste blanche {revue}, focus rendu à la section) ; 1 rejeté ; 372+94+89 tests ciblés ; pas de passe 2, delta relu par l'orchestrateur · e8ccc1b
+- 2026-11-11 14:40 · 5.6 · CI · verte (PR #7, trois OS) · e8ccc1b
+- 2026-11-11 14:40 · 5.6 · fusion · #7 fusionnée (squash), MERGED vérifié · 8b40ce5
+- 2026-11-11 14:54 · run · CI · main verte sur 8b40ce5 (après #7) · 8b40ce5
+- 2026-11-11 14:54 · run · décision · tag annoté v0.5.0 et release publiés (fin de l'epic 5 : 5.5 et 5.6) · 8b40ce5

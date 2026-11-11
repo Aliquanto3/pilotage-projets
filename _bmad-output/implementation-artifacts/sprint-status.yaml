@@ -78,13 +78,13 @@ development_status:
   4-11-colonnes-coup-d-œil: done
   epic-4-retrospective: optional
 
-  epic-5: in-progress
+  epic-5: done
   5-1-opérations-appliquées-par-sync: done
   5-2-mutations-reçues-par-le-serveur: done
   5-3-messages-injectés-au-démarrage-d-une-session: done
   5-4-commande-de-reprise-et-brief: done
-  5-5-panneau-de-reprise-dans-le-tiroir: in-progress
-  5-6-messages-et-réglages-dans-le-tiroir-v0-5-0: backlog
+  5-5-panneau-de-reprise-dans-le-tiroir: done
+  5-6-messages-et-réglages-dans-le-tiroir-v0-5-0: done
   epic-5-retrospective: optional
 
   epic-6: in-progress
