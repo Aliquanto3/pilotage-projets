@@ -1,0 +1,102 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: 11-06-2026 06:35
+last_updated: 11-11-2026 09:28
+project: pilotage-projets
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts/specs
+development_status:
+  epic-1: done
+  1-1-créer-le-dépôt-privé-et-son-socle: done
+  1-2-identifiants-sûrs-et-filtre-de-texte: done
+  1-3-inventaire-des-dépôts-et-table-des-dossiers: done
+  1-4-faits-de-dépôt-lus-par-gh: done
+  1-5-action-calculée-à-partir-des-faits: done
+  1-6-commande-lancer-py-scan-et-export-tableau-md: done
+  epic-1-retrospective: optional
+
+  epic-2: in-progress
+  2-1-capturer-les-payloads-réels-des-hooks-mixte: in-progress
+  2-2-socle-commun-des-hooks-et-cycle-de-vie-d-une-session: done
+  2-3-marqueur-d-attente-note-de-reprise-et-effacement: done
+  2-4-heuristique-de-secours: done
+  2-5-règle-du-marqueur-injectée-au-démarrage: done
+  2-6-action-des-sessions-dans-calculer_action: done
+  2-7-fusion-ciblée-de-settings-json: done
+  2-8-publication-et-installation-par-claude-config-v0-1-0: done
+  epic-2-retrospective: optional
+
+  epic-3: in-progress
+  3-1-cycle-lancer-py-sync: done
+  3-2-reprise-du-cycle-sur-erreur: done
+  3-3-archivage-des-sessions-et-rotation-des-journaux: done
+  3-4-assemblage-des-faits-de-tous-les-pc: done
+  3-5-tâche-planifiée-de-synchro: in-progress
+  3-6-synchro-détachée-lancée-par-les-hooks-v0-2-0: done
+  epic-3-retrospective: optional
+
+  epic-4: in-progress
+  4-1-serveur-local-et-périmètre-de-sécurité: done
+  4-2-route-d-état-assemblé: done
+  4-3-scan-et-sync-lancés-par-le-serveur: done
+  4-4-coquille-de-l-appli-clé-d-accès-et-barre-du-haut: done
+  4-5-accueil-kanban: done
+  4-6-grille-responsive-et-rafraîchissement-de-l-accueil: done
+  4-7-tiroir-de-détail-et-vue-chantiers-v0-4-0: backlog
+  4-8-famille-attente-vieillissante-et-accueil-par-projet: done
+  4-9-charte-v2-1-dans-l-appli: done
+  4-10-tête-de-l-accueil-coup-d-œil: done
+  4-11-colonnes-coup-d-œil: done
+  epic-4-retrospective: optional
+
+  epic-5: in-progress
+  5-1-opérations-appliquées-par-sync: done
+  5-2-mutations-reçues-par-le-serveur: done
+  5-3-messages-injectés-au-démarrage-d-une-session: done
+  5-4-commande-de-reprise-et-brief: done
+  5-5-panneau-de-reprise-dans-le-tiroir: backlog
+  5-6-messages-et-réglages-dans-le-tiroir-v0-5-0: backlog
+  epic-5-retrospective: optional
+
+  epic-6: in-progress
+  6-1-jeu-étiqueté-et-validation-de-l-heuristique-mixte: in-progress
+  6-2-banc-de-latence-sur-le-portable-cible-mixte: backlog
+  6-3-fiabilité-sur-50-sessions-réelles-humaine: backlog
+  6-4-recette-de-l-appli-mixte: backlog
+  6-5-release-v1-0-0-et-index-du-portfolio: backlog
+  epic-6-retrospective: optional
+
+  epic-7: done
+  7-1-propriétaire-et-dépôt-de-données-dans-config-json: done
+  7-2-nom-de-l-utilisateur-et-action-attend-utilisateur: done
+  7-3-dépôt-publiable-v0-3-0: done
+  epic-7-retrospective: optional
