@@ -341,6 +341,13 @@ def test_textes_exacts_de_l_epic():
         'setAttribute("aria-describedby", idConsigne)', "DUREE_COPIE_MS = 2000",
     ):
         assert texte in cle, texte
+    barre = (WEB / "barre.js").read_text(encoding="utf-8")
+    for texte in (  # story 9.4
+        '"Rapport de la semaine"', "Rapport de la semaine ${semaine} ouvert dans le navigateur.",
+        '"Rapport de la semaine ouvert dans le navigateur."', '"Un rapport est déjà en cours."',
+    ):
+        assert texte in barre, texte
+    assert 'appeler("POST", "/api/rapport")' in app
 
 
 def test_css_sans_couleur_en_dur():

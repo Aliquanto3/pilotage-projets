@@ -11,7 +11,8 @@ Ordre des contrôles, pour toute méthode et toute cible :
 2. `Origin` présent et différent de l'appli : 403 ;
 3. préfixe `/api/` : `Authorization: Bearer <jeton>` (aléatoire, 256 bits, régénéré à chaque
    lancement, comparé à temps constant), sinon 401 ;
-4. routage sur la table fermée (`serveur/routes.py`) : route inconnue 404, méthode non permise
+4. `/api/` avec un paramètre de requête (`?`) : 400, aucun appel de l'appli n'en porte ;
+5. routage sur la table fermée (`serveur/routes.py`) : route inconnue 404, méthode non permise
    405 avec `Allow`, identifiant du chemin invalide 400.
 
 Corps borné à 64 Kio (413 au-delà), lu après le jeton seulement. Sans jeton, seuls `/` et les
@@ -38,6 +39,14 @@ Les lectures (`GET`) n'ont aucun effet : ni écriture, ni mutex, ni processus.
   une seule relance en file, au plus 5 fois par série (une mutation reçue pendant la série ne
   remet pas le compteur à zéro), de 2 s à 30 s ; au-delà, abandon journalisé et l'opération
   attend le cycle planifié.
+
+## Rapport de la semaine (`POST /api/rapport`, `serveur/rapport.py`, story 9.4)
+
+- Sans corps (corps non vide : 400) ; génère la page de la semaine en cours dans le fil de la
+  requête, sous un verrou (seconde demande simultanée : 409, rien de généré).
+- L'URI `file:` est construite par le serveur depuis `chemins.rapport_semaine()` et passée au
+  navigateur ; le client n'envoie rien, et aucune réponse ne porte de chemin. Erreurs : 500 avec
+  un texte fixe (« rapport impossible », « page générée, ouverture impossible »).
 
 ## Commandes de reprise (`serveur/reprise.py`, story 5.4)
 

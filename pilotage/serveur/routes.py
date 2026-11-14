@@ -113,7 +113,7 @@ def _declencheur(type_: str) -> Gestionnaire:
     return gestionnaire
 
 
-# Liste fermée d'AD-14. Les stories 4.3, 5.2 et 5.4 posent leur gestionnaire ici.
+# Liste fermée d'AD-14. Les stories 4.3, 5.2, 5.4 et 9.4 posent leur gestionnaire ici.
 TABLE: tuple[Route, ...] = (
     Route("GET", "/api/etat", _gestionnaire_etat),
     Route("GET", "/api/brief/<id>", _tardif("reprise", "brief"), (("id", ids.valider_id),)),
@@ -124,6 +124,7 @@ TABLE: tuple[Route, ...] = (
     Route("GET", "/api/operations", _tardif("suivi", "operations")),
     Route("POST", "/api/scan", _declencheur("scan")),
     Route("POST", "/api/sync", _declencheur("sync")),
+    Route("POST", "/api/rapport", _tardif("rapport", "rapport")),
     Route("POST", "/api/reprise", _tardif("reprise", "reprise")),
     Route("POST", "/api/message", _tardif("mutations", "message")),
     Route("POST", "/api/projets", _tardif("mutations", "projets")),

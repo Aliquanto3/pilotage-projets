@@ -102,6 +102,18 @@ Le code (ce dépôt) et les données (le dépôt privé) sont deux dépôts sép
    ```
    `scan` et `sync` acceptent `--racine-github` et `--pc` ; `appli` accepte `--port` (47615 par
    défaut) et `--sans-sync`.
+6. **Rapport de la semaine.**
+   ```powershell
+   uv run python lancer.py rapport                     # semaine ISO courante (heure locale)
+   uv run python lancer.py rapport --semaine 2026-W46
+   ```
+   Écrit une page HTML autonome (sans script, sans lien, sans ressource externe) sous
+   `%LOCALAPPDATA%\pilotage-projets\rapports\semaine-AAAA-Www.html`, calculée sans modèle à
+   partir des seules données de pilotage. Le rapport reste sur ce PC : `sync` ne le copie pas.
+   Dans l'appli, le bouton « Rapport de la semaine » de la barre du haut génère la page de la
+   semaine en cours et l'ouvre : l'ouverture suit l'application associée aux fichiers `.html`
+   (ou la variable d'environnement `BROWSER`, si elle est posée). Si rien ne s'ouvre, la page est
+   quand même écrite à l'emplacement ci-dessus.
 
 L'auteur publie le runtime vers un dépôt de configuration privé et le restaure sur chaque PC avec
 un script qui n'est pas dans ce dépôt. C'est sa façon de faire, pas la seule : voir
@@ -125,8 +137,9 @@ motif (`ghp_`, `sk-`, `Bearer`, `TOKEN=`…) n'est pas transmise, un message qui
 refusé. Ce filtre vise la fuite accidentelle d'un jeton, pas le reste du contenu : relisez ce que
 Claude écrit dans ses notes de reprise si vos sessions touchent des données sensibles.
 
-Ce qui n'est jamais poussé : le texte de vos prompts (les hooks ne gardent que la date du
-dernier). La synchro refuse de pousser si `gh` ne confirme pas que le dépôt de données est privé,
+Ce qui n'est jamais poussé : les rapports de la semaine (`lancer.py rapport`, écrits sous
+`%LOCALAPPDATA%\pilotage-projets\rapports\`) ; le texte de vos prompts (les hooks ne gardent
+que la date du dernier). La synchro refuse de pousser si `gh` ne confirme pas que le dépôt de données est privé,
 avant le clone et de nouveau avant le push.
 
 Écrit seulement en local, jamais copié vers le dépôt de données, et seulement si vous le lancez à

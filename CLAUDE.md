@@ -11,14 +11,16 @@ désigné par `depot_donnees` (`config.json`).
 - `pilotage/hooks/` : un point d'entrée par événement, stdlib seule.
 - `pilotage/scan/`, `sync/`, `serveur/` : outils, seuls à pouvoir importer PyYAML.
 - `pilotage/installation/` : fusion de `settings.json`.
-- `pilotage/rapport/` : synthèse de la semaine ; `semaine.py` pur, `lecture.py` seul à lire des
-  fichiers et à lancer `git` (lecture de `donnees/`).
+- `pilotage/rapport/` : rapport de la semaine ; `semaine.py` et `page.py` (HTML) purs,
+  `lecture.py` seul à lire des fichiers et à lancer `git` (lecture de `donnees/`), `cli.py`
+  écrit la page sous `chemins.rapports()` (racine locale, jamais copiée par `sync`).
 - `pilotage/web/` : HTML, JS, CSS statiques, charte locale (`charte.css`, `polices.css`), aucun CDN.
 - `lancer.py` : sous-commandes, importe toutes les couches sauf hooks.
 
 Graphe des imports (vérifié par `tests/test_imports.py`) : tout importe `noyau` ; tout sauf
-`noyau` importe `chemins` ; `sync → scan`, `serveur → sync`, `rapport → scan` ; rien d'autre entre couches (rien
-n'importe `rapport`).
+`noyau` importe `chemins` ; `sync → scan`, `sync → rapport`, `serveur → sync`,
+`serveur → rapport`, `rapport → scan` ; rien d'autre entre couches (`rapport` n'est importé que
+par `sync`, `serveur` et `lancer.py`).
 
 ## Commandes
 - Lint : `uv run ruff check .`
@@ -37,9 +39,10 @@ contient `sync.ps1`) : sauté en CI. Porte locale de l'auteur : avant toute fusi
 `PILOTAGE_EXIGER_SYNC_PS1=1` (script introuvable : échec au lieu du saut).
 
 ## Contrats partagés
-- **C1** `lancer.py` : `scan`, `sync`, `appli`, `installer-reglages` délèguent, par import
-  tardif, à `main(argv) -> int` de `pilotage/{scan,sync,serveur,installation}/cli.py`. Une story
-  ne modifie que son `cli.py`.
+- **C1** `lancer.py` : `scan`, `sync`, `appli`, `installer-reglages`, `rapport` délèguent, par
+  import tardif, à `main(argv) -> int` de
+  `pilotage/{scan,sync,serveur,installation,rapport}/cli.py`. Une story ne modifie que son
+  `cli.py`.
 - **C2** `pilotage/noyau/schemas/` : un module par validateur, qui expose
   `valider(objet) -> None` et lève `ErreurValidation` ; une ligne par validateur dans
   `REGISTRE` (`__init__.py`). `schemas.valider(nom, objet)` lève `SchemaInconnu` pour un nom absent.

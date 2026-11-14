@@ -349,6 +349,28 @@ def test_jeton_en_query_refuse(serveur):
     assert reponse.status == 401
 
 
+@pytest.mark.parametrize("methode", METHODES)
+@pytest.mark.parametrize("cible", ["/api/r-{m}?x=1", "/api/r-{m}?", "/api/inconnue?x=1",
+                                   "/api/elem/a?b", "/API/r-{m}?x=1"])
+def test_parametre_de_requete_api_400_apres_jeton(serveur, methode, cible):
+    """Story 9.4 : aucun appel du front ne porte de `?` vers `/api/` ; refus fixe, avant le
+    routage (ni 404 ni 405) mais après le jeton (sans jeton : 401)."""
+    cible = cible.format(m=methode.lower())
+    sans_jeton, _ = requete(serveur, methode, cible)
+    assert sans_jeton.status == 401
+    reponse, contenu = requete(serveur, methode, cible, jeton=serveur.jeton)
+    _verifier_entetes_api(reponse)
+    assert reponse.status == 400
+    assert reponse.getheader("Allow") is None
+    if methode != "HEAD":
+        assert _json(contenu) == {"ok": False, "erreur": "paramètre refusé"}
+
+
+def test_parametre_de_requete_hors_api_ignore(serveur):
+    reponse, _ = requete(serveur, "GET", "/appli.js?v=1")
+    assert reponse.status == 200
+
+
 # --- Réponses /api/ ---------------------------------------------------------------------------
 
 
@@ -462,7 +484,8 @@ def test_table_fermee_d_ad14():
     assert {(r.methode, r.motif) for r in routes.TABLE} == {
         ("GET", "/api/etat"), ("GET", "/api/brief/<id>"), ("GET", "/api/sessions/<projet>"),
         ("GET", "/api/operations"), ("POST", "/api/scan"), ("POST", "/api/sync"),
-        ("POST", "/api/reprise"), ("POST", "/api/message"), ("POST", "/api/projets"),
+        ("POST", "/api/rapport"), ("POST", "/api/reprise"), ("POST", "/api/message"),
+        ("POST", "/api/projets"),
     }
     assert len(routes.TABLE) == len({(r.methode, r.motif) for r in routes.TABLE})
 

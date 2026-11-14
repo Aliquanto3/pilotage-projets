@@ -4,7 +4,7 @@
 
 import { boutonNom as boutonAccueil, lectureAutomatique, rendreAccueil, texteHausse } from "./accueil.js";
 import { construireBandeaux } from "./bandeaux.js";
-import { construireBarre } from "./barre.js";
+import { construireBarre, texteRapport } from "./barre.js";
 import { boutonNom as boutonChantiers, rendreChantiers } from "./chantiers.js";
 import { ecranClePerdue, ecranSessionRemplacee } from "./cle.js";
 import { TEXTE_INJOIGNABLE, alerter, annoncer, el, vider } from "./dom.js";
@@ -54,6 +54,8 @@ let attendConnus = null;
 // Suivi d'un cycle (scan ou synchro) : motif "lance" (bouton), "deja" (409) ou "observe".
 let lancement = false;
 let suivi = null;
+// Rapport de la semaine (story 9.4) : un appel à la fois, garde contre le double clic.
+let rapportEnCours = false;
 // Dépôts qui déclenchent une synchro côté serveur (story 5.6).
 const DEPOTS = ["/api/message", "/api/projets"];
 // Numéro de chaque GET /api/etat : une réponse à un GET parti avant la réponse du dernier POST
@@ -436,6 +438,34 @@ async function lancer(type) {
   alerter(texte);
 }
 
+// Bouton « Rapport de la semaine » : le serveur génère et ouvre la page ; rien n'est envoyé.
+async function rapport() {
+  if (rapportEnCours) {
+    return;
+  }
+  rapportEnCours = true;
+  barre.majRapport(true);
+  const { statut, corps } = await appeler("POST", "/api/rapport");
+  rapportEnCours = false;
+  if (arrete) {
+    return;
+  }
+  barre.majRapport(false);
+  if (statut === 401) {
+    return; // écran de session déjà affiché par `appeler`
+  }
+  if (statut === 403) {
+    signalerRefus(403);
+    return;
+  }
+  const { annonce, erreur } = texteRapport(statut, corps);
+  if (annonce) {
+    annoncer(annonce);
+  } else {
+    alerter(erreur);
+  }
+}
+
 function changerOnglet(nom) {
   onglet = nom;
   barre.majOnglet(nom);
@@ -472,6 +502,7 @@ function demarrer() {
     actualiser,
     scan: () => lancer("scan"),
     sync: () => lancer("sync"),
+    rapport,
   });
   bandeaux = construireBandeaux();
   contenu = el("main", "contenu");

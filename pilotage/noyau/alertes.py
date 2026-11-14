@@ -18,6 +18,7 @@ FICHIERS_IGNORES = "fichiers-ignores"
 SYNC_CONFLIT = "sync-conflit"
 SYNC_PUSH_REFUSE = "sync-push-refuse"
 PROJETS_NON_COMMITE = "projets-non-commite"
+RAPPORT_NON_GENERE = "rapport-non-genere"
 
 MOTIF_AUTOSTASH = "autostash"
 MOTIF_REBASE = "rebase"
@@ -60,6 +61,8 @@ MODELES: dict[str, str] = {
     SYNC_PUSH_REFUSE: _ABANDON,
     # Story 5.1 : projets.yaml invalide ou d'un schema plus récent, gardé hors du commit (M7).
     PROJETS_NON_COMMITE: "projets.yaml invalide ou d'une version plus récente : non envoyé",
+    # Story 9.3 : rapport hebdomadaire non écrit (texte fixe, sans contenu de données).
+    RAPPORT_NON_GENERE: "Rapport de la semaine non généré : nouvel essai au prochain cycle",
     # Story 5.1 : opérations rejetées (source `operation`), gardées dans `operations/rejetees/`.
     "operation-nom-invalide": "{nombre} fichier(s) d'opération au nom invalide ignoré(s)",
     "operation-invalide": "Opération {id} rejetée : fichier invalide",
@@ -96,6 +99,7 @@ REGLES: dict[str, dict[str, re.Pattern | frozenset]] = {
     SYNC_CONFLIT: {"instant": _INSTANT, "motif": frozenset({MOTIF_AUTOSTASH, MOTIF_REBASE})},
     SYNC_PUSH_REFUSE: {"instant": _INSTANT, "motif": frozenset({MOTIF_NON_FAST_FORWARD})},
     PROJETS_NON_COMMITE: {},
+    RAPPORT_NON_GENERE: {},
 }
 
 
