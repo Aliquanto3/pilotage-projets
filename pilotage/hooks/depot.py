@@ -14,8 +14,9 @@ abandonnée, type d'erreur journalisé.
 
 Lecture par `SessionStart` (`etat_du_depot`) : `attente/depots/<projet>/<ce pc>.json` et
 `donnees/depots/<projet>/<autre pc>.json`, `MAX_FICHIERS_LUS` au plus par `mtime` décroissant,
-`BORNE_FICHIER_OCTETS` chacun ; retenu : le plus récent par `ecrit`, de moins de
-`PEREMPTION_JOURS`, champs refiltrés. Dépôt en run (`run-autonome.md` présent) : rien.
+`BORNE_FICHIER_OCTETS` chacun ; retenu : le plus récent par `ecrit` seul ; son état (date
+`etat_ecrit`) et ses décisions de moins de `PEREMPTION_JOURS`, champs refiltrés.
+Dépôt en run (`run-autonome.md` présent) : rien.
 Ne lève jamais.
 """
 
@@ -118,12 +119,15 @@ def _ecrire(projet: str, pc: str, session: str, trouves, racine: str) -> None:
     chemin = chemin_etat(projet, pc)
     with _commun.verrou_fichier(chemin_verrou(projet), ESSAIS_VERROU):
         precedent = _lire_precedent(chemin, projet, pc)
-        if not clos and etat is None and precedent is not None:
-            etat = precedent.get("etat")
+        date_etat = maintenant
+        if not clos and etat is None and precedent is not None and "etat" in precedent:
+            # décision seule : l'état gardé garde sa date (la péremption porte sur lui)
+            etat, date_etat = precedent["etat"], etat_depot.date_etat(precedent)
         decisions = ([] if precedent is None else precedent["decisions"]) + nouvelles
         objet = {"schema": etat_depot.SCHEMA, "projet": projet, "pc": pc, "session": session,
                  "ecrit": maintenant}
         if etat:
+            objet["etat_ecrit"] = date_etat
             objet["etat"] = etat
         objet["decisions"] = decisions[-etat_depot.MAX_DECISIONS:]
         schemas.valider("etat_depot", objet)
@@ -191,6 +195,9 @@ def _lire(chemin: str, projet: str, pc: str, limite: str) -> dict | None:
 
 
 def _choisir(ctx) -> EtatRetenu | None:
+    """Le fichier le plus récent par `ecrit` seul : son état (s'il a moins de
+    `PEREMPTION_JOURS`, date `etat_ecrit`) et ses décisions récentes, refiltrés ; rien
+    d'exploitable : `None`, sans repli sur un fichier plus ancien (il serait pris pour l'actuel)."""
     if os.path.exists(os.path.join(ctx.cwd, *RUN_AUTONOME)):
         return None  # dépôt en run : `run-autonome.md` fait foi
     candidats = sorted(_candidats(ctx), key=lambda c: c[0], reverse=True)[:MAX_FICHIERS_LUS]
@@ -198,17 +205,23 @@ def _choisir(ctx) -> EtatRetenu | None:
         return None
     limite = (datetime.now(UTC) - timedelta(days=PEREMPTION_JOURS)).strftime("%Y-%m-%dT%H:%M:%SZ")
     objets = [o for _m, pc, chemin in candidats if (o := _lire(chemin, ctx.projet, pc, limite))]
-    objets.sort(key=lambda o: (o["ecrit"], o["pc"]), reverse=True)
+    if not objets:
+        return None
+    objet = max(objets, key=lambda o: (o["ecrit"], o["pc"]))
     racine = str(chemins.racine_github())
-    for objet in objets:
-        etat = etat_depot.filtrer_etat(objet.get("etat"), racine)
-        decisions = [
-            ligne for ligne in (etat_depot.filtrer_decision(d, racine) for d in objet["decisions"])
-            if ligne is not None
-        ]
-        if etat is not None or decisions:
-            return EtatRetenu(objet["pc"], objet["ecrit"], etat, decisions)
-    return None
+    date_etat = etat_depot.date_etat(objet) if "etat" in objet else objet["ecrit"]
+    etat = etat_depot.filtrer_etat(objet.get("etat"), racine) if date_etat >= limite else None
+    decisions = [
+        ligne for ligne in (
+            etat_depot.filtrer_decision(d, racine) for d in objet["decisions"]
+            if d["ecrit"] >= limite
+        ) if ligne is not None
+    ]
+    if etat is None and not decisions:
+        return None
+    # En-tête : date de l'état montré, sinon de la dernière écriture (décisions seules).
+    return EtatRetenu(objet["pc"], date_etat if etat is not None else objet["ecrit"], etat,
+                      decisions)
 
 
 def etat_du_depot(ctx) -> EtatRetenu | None:

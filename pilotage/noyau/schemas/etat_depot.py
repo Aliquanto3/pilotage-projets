@@ -1,10 +1,13 @@
 """Validateur de l'état court d'un dépôt sur un PC (story 8.3, AD-10, FR43).
 
 `attente/depots/<projet>/<pc>.json` (et sa copie dans `donnees/`) : `schema` (1), `projet`,
-`pc`, `session` (dernière à l'avoir écrit), `ecrit` (ISO Z), `etat` facultatif (`prochaine`
-obligatoire, `branche`, `blocages`, `explore`, `a_explorer` facultatifs, bornés par `BORNES`),
+`pc`, `session` (dernière à l'avoir écrit), `ecrit` (ISO Z, dernière écriture du fichier),
+`etat` facultatif (`prochaine` obligatoire, `branche`, `blocages`, `explore`, `a_explorer`
+facultatifs, bornés par `BORNES`),
 `decisions` : les `MAX_DECISIONS` dernières décisions de ce PC (schéma `decision`), la plus
-ancienne d'abord. Tout autre champ est refusé.
+ancienne d'abord. `etat_ecrit` (ISO Z, au plus `ecrit`, seulement avec `etat`) : date de
+l'état, distincte de `ecrit` qu'une décision seule rafraîchit ; absent : `ecrit`. Tout autre
+champ est refusé.
 
 `filtrer_etat` et `filtrer_decision` rejouent le filtre des champs (`texte.nettoyer_champ`) :
 à l'écriture par `Stop`, à la copie par `sync` et à la lecture par `SessionStart`.
@@ -16,7 +19,7 @@ from pilotage.noyau.schemas.erreurs import ErreurValidation
 
 SCHEMA = 1
 OBLIGATOIRES = frozenset({"schema", "projet", "pc", "session", "ecrit", "decisions"})
-CHAMPS = OBLIGATOIRES | {"etat"}
+CHAMPS = OBLIGATOIRES | {"etat", "etat_ecrit"}
 # Points de code, dans l'ordre d'affichage (le même que `marqueur.CHAMPS_ETAT`).
 BORNES = {"prochaine": 300, "branche": 100, "blocages": 300, "explore": 300, "a_explorer": 300}
 MAX_DECISIONS = 5
@@ -50,11 +53,22 @@ def valider(objet: object) -> None:
             raise ErreurValidation(f"etat_depot : etat : champ inconnu : {', '.join(inconnus)}")
         for cle, valeur in etat.items():
             decision.champ_texte(valeur, BORNES[cle], f"etat.{cle}", "etat_depot")
+    if "etat_ecrit" in objet:
+        if "etat" not in objet:
+            raise ErreurValidation("etat_depot : etat_ecrit sans etat")
+        decision.horodatage(objet["etat_ecrit"], "etat_ecrit", "etat_depot")
+        if objet["etat_ecrit"] > objet["ecrit"]:
+            raise ErreurValidation("etat_depot : etat_ecrit postérieur à ecrit")
     decisions = objet["decisions"]
     if not isinstance(decisions, list) or len(decisions) > MAX_DECISIONS:
         raise ErreurValidation(f"etat_depot : decisions : liste de {MAX_DECISIONS} au plus")
     for ligne in decisions:
         decision.valider(ligne)
+
+
+def date_etat(objet: dict) -> str:
+    """Date de l'état d'un fichier validé : `etat_ecrit`, sinon `ecrit`."""
+    return objet.get("etat_ecrit", objet["ecrit"])
 
 
 def filtrer_etat(etat: object, racine_github: str | None = None) -> dict | None:

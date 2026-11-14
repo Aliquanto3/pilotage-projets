@@ -72,11 +72,13 @@ def test_filtre_rejoue(racine_locale_isolee):
 
 
 def test_prochaine_suspecte_etat_retire(racine_locale_isolee):
-    _poser(f"{PC}.json", json.dumps(_etat(etat={"prochaine": SECRET}, decisions=[_ligne("D")])))
+    _poser(f"{PC}.json", json.dumps(_etat(etat={"prochaine": SECRET}, decisions=[_ligne("D")],
+                                          etat_ecrit="2026-11-13T10:00:00Z")))
     _copier()
     objet = json.loads((chemins.donnees() / "depots" / PROJET / f"{PC}.json").read_text(
         encoding="utf-8"))
-    assert "etat" not in objet and objet["decisions"] == [_ligne("D")]
+    assert "etat" not in objet and "etat_ecrit" not in objet
+    assert objet["decisions"] == [_ligne("D")]
 
 
 def test_journal_borne_a_200_lignes_ici_et_la(racine_locale_isolee):
@@ -129,3 +131,28 @@ def test_etape_copie_attente_inclut_les_depots(racine_locale_isolee):
     cycle._copier_attente(ctx)
     assert ctx.relatifs == [f"depots/{PROJET}/{PC}.json"]
     assert [nom for nom, _ in cycle.ETAPES].count("copie-attente") == 1
+
+
+def test_rotation_n_efface_pas_un_verrou_repris(racine_locale_isolee, monkeypatch):
+    """Rotation de plus de 2 s : `Stop` juge le verrou périmé et le reprend ; la fin de la
+    rotation ne doit pas effacer le verrou de `Stop`."""
+    _poser(f"{PC}.decisions.jsonl",
+           "".join(json.dumps(_ligne(f"D{i}")) + "\n" for i in range(201)))
+    verrou = chemins.attente() / "verrous" / f"depot-{PROJET}.lock"
+    ecrire = chemins.ecrire_atomique
+
+    def reprise_pendant_la_rotation(chemin, contenu):
+        ecrire(chemin, contenu)
+        if chemin.name.endswith(".decisions.jsonl") and "attente" in chemin.parts:
+            verrou.write_text("4242 jeton-de-stop", encoding="utf-8")
+
+    monkeypatch.setattr(chemins, "ecrire_atomique", reprise_pendant_la_rotation)
+    _copier()
+    assert verrou.read_text(encoding="utf-8") == "4242 jeton-de-stop"
+
+
+def test_verrou_de_rotation_rendu(racine_locale_isolee):
+    _poser(f"{PC}.decisions.jsonl",
+           "".join(json.dumps(_ligne(f"D{i}")) + "\n" for i in range(201)))
+    _copier()
+    assert not (chemins.attente() / "verrous" / f"depot-{PROJET}.lock").exists()

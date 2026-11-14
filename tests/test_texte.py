@@ -224,7 +224,9 @@ def test_nom_affiche_refuse(brut):
 
 @pytest.mark.parametrize(
     "absolu",
-    ["C:\\x", "c:/x", "voir D:\\a", "\\\\srv\\p", "/etc/x", "  /etc", "~/x", "~"],
+    ["C:\\x", "c:/x", "voir D:\\a", "\\\\srv\\p", "/etc/x", "  /etc/x", "~/x", "~nom/x",
+     "voir /c/Users/nom/a.md", "Relire ~/.claude/x", "(/home/nom/a)", "x=/Users/nom/a",
+     "file:///C:/x", "\\Users\\nom", "a et `/home/nom/b`"],
 )
 def test_champ_chemin_absolu_refuse(absolu):
     assert texte.est_chemin_absolu(absolu)
@@ -232,7 +234,10 @@ def test_champ_chemin_absolu_refuse(absolu):
 
 
 @pytest.mark.parametrize(
-    "sain", ["docs/a.md", "https://x.org/a", "a/b ~c", "ratio 3:1", "{{RACINE_GITHUB}}/a"]
+    "sain",
+    ["docs/a.md", "https://x.org/a/b", "a/b ~c", "ratio 3:1", "{{RACINE_GITHUB}}/a/b",
+     "{{RACINE_GITHUB}}\\p\\a.md", "lancer /clear", "/agent-cost-kit:reviewer", "~5 ms",
+     "origin/main", "A / B", "s3://b/c/d", "/etc", "~"],
 )
 def test_champ_relatif_garde(sain):
     assert not texte.est_chemin_absolu(sain)
@@ -245,7 +250,11 @@ def test_champ_racine_normalisee_puis_gardee():
     )
 
 
-@pytest.mark.parametrize("valeur", ["a\nb", "a\rb", "a\x00", "a\x7f", "a\x85", "a\ud800", 3, None])
+@pytest.mark.parametrize(
+    "valeur",
+    ["a\nb", "a\rb", "a\x00", "a\x7f", "a\x85", "a b", "a b", "a‮b", "a⁦b",
+     "a\ud800", 3, None],
+)
 def test_champ_controle_ou_non_texte_refuse(valeur):
     assert texte.nettoyer_champ(valeur, 300) == ""
 

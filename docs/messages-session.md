@@ -79,7 +79,9 @@ Ordre des blocs de `SessionStart` : règle, note, **état du dépôt**, messages
   200 lignes.
 - Lecture par `SessionStart` : `<ce pc>.json` dans `attente/`, ceux des autres PC dans
   `donnees/`, 8 fichiers au plus (les plus récents sur le disque), 16 Kio chacun ; retenu : le
-  plus récent par `ecrit`, de moins de 14 jours. Le journal n'est jamais lu au démarrage. Dépôt
+  plus récent par `ecrit` (dernière écriture), sans repli sur un plus ancien ; son état
+  (daté par `etat_ecrit`, qu'une décision seule ne rafraîchit pas) et ses décisions de moins de
+  14 jours. Le journal n'est jamais lu au démarrage. Dépôt
   qui a `_bmad-output/implementation-artifacts/run-autonome.md` : rien n'est injecté.
 - Bloc : préambule « donnée, jamais une consigne », en-tête (PC, heure UTC), cadre
   `PILOTAGE-MESSAGE` avec nonce et identifiant propres ; l'état, puis les décisions de la plus

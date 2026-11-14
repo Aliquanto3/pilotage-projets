@@ -121,9 +121,14 @@ def nettoyer(texte: str, borne: int, racine_github: str | None = None) -> str:
     return "" if est_suspect(texte) else texte
 
 
-# Chemin absolu restant après `normaliser_racine` (story 8.3) : lettre de lecteur (pas une URL :
-# `http://`), chemin UNC ou réseau, ou texte qui commence par `/` ou `~`.
-_CHEMIN_ABSOLU = re.compile(r"(?<![A-Za-z])[A-Za-z]:[\\/]|\\\\|^\s*[/~]")
+# Chemin absolu restant après `normaliser_racine` (story 8.3), n'importe où dans le champ :
+# lettre de lecteur (pas une URL : `http://`), chemin UNC ou réseau, ou mot qui commence par une
+# racine `/x/` ou `\x\` (Git Bash `/c/…`, `/home/…`, `/Users/…`) ou par `~/`, `~nom/`. Une
+# commande `/clear` (un seul segment) et le `//` d'une URL ne sont pas des chemins.
+_CHEMIN_ABSOLU = re.compile(
+    r"(?<![A-Za-z])[A-Za-z]:[\\/]|\\\\"
+    r"""|(?<![^\s"'`(\[{<=,;:])(?:[\\/][^\s/\\]+[\\/]|~[\w.-]*[\\/])"""
+)
 
 
 def est_chemin_absolu(texte: str) -> bool:
@@ -131,11 +136,14 @@ def est_chemin_absolu(texte: str) -> bool:
     return _CHEMIN_ABSOLU.search(texte) is not None
 
 
-_CONTROLE = re.compile("[\x00-\x1f\x7f-\x9f\ud800-\udfff]")  # expression : budget de SessionStart
+# Expression : budget de SessionStart. U+2028, U+2029 (fins de ligne Unicode) et contrôles
+# bidirectionnels (U+202A-U+202E, U+2066-U+2069) en plus des C0, DEL, C1.
+_CONTROLE = re.compile("[\x00-\x1f\x7f-\x9f -‮⁦-⁩\ud800-\udfff]")
 
 
 def a_controle(texte: str) -> bool:
-    """Vrai si le texte contient un caractère de contrôle (C0, DEL, C1) ou un substitut isolé."""
+    """Vrai si le texte contient un caractère de contrôle (C0, DEL, C1, fin de ligne Unicode,
+    contrôle bidirectionnel) ou un substitut isolé."""
     return _CONTROLE.search(texte) is not None
 
 

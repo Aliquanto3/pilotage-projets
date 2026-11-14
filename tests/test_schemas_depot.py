@@ -91,7 +91,7 @@ def test_non_objets_refuses():
 def test_filtrer_etat_et_decision():
     racine = "C:/GitHub"
     assert etat_depot.filtrer_etat({"prochaine": "P", "explore": "C:/GitHub/a/b.md",
-                                    "blocages": "ghp_x", "a_explorer": "/etc"}, racine) == {
+                                    "blocages": "ghp_x", "a_explorer": "/etc/x"}, racine) == {
         "prochaine": "P", "explore": "{{RACINE_GITHUB}}/a/b.md"}
     assert etat_depot.filtrer_etat({"prochaine": "AKIA0", "branche": "b"}, racine) is None
     assert etat_depot.filtrer_etat("P", racine) is None
@@ -100,3 +100,18 @@ def test_filtrer_etat_et_decision():
     assert etat_depot.filtrer_decision(_ligne(pourquoi="Bearer x")) == _ligne()
     assert etat_depot.filtrer_decision(_ligne(pourquoi="car")) == _ligne(pourquoi="car")
     assert etat_depot.filtrer_decision(None) is None
+
+
+def test_etat_ecrit():
+    objet = _etat()
+    objet["etat_ecrit"] = "2026-11-01T10:00:00Z"
+    schemas.valider("etat_depot", objet)
+    for modifie, motif in (
+        ({"etat_ecrit": "2026-11-15T10:00:00Z"}, "postérieur"),
+        ({"etat_ecrit": "hier"}, "horodatage"),
+    ):
+        with pytest.raises(ErreurValidation, match=motif):
+            schemas.valider("etat_depot", {**objet, **modifie})
+    sans_etat = {k: v for k, v in objet.items() if k != "etat"}
+    with pytest.raises(ErreurValidation, match="sans etat"):
+        schemas.valider("etat_depot", sans_etat)

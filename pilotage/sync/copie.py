@@ -190,6 +190,7 @@ def filtrer_etat_depot(objet: dict, racine_github: str) -> dict:
         etat = etat_depot.filtrer_etat(propre["etat"], racine_github)
         if etat is None:
             del propre["etat"]
+            propre.pop("etat_ecrit", None)
         else:
             propre["etat"] = etat
     if isinstance(propre.get("decisions"), list):
@@ -229,7 +230,9 @@ def _borner_journal(attente: Path, projet: str, nom: str) -> None:
         descripteur = os.open(verrou, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     except OSError:
         return
+    jeton = f"{os.getpid()} {os.urandom(8).hex()}".encode("ascii")
     try:
+        os.write(descripteur, jeton)
         source = chemins.joindre_sous(attente, "depots", projet, nom)
         with open(source, "rb") as fichier:
             lignes = fichier.read().split(b"\n")
@@ -242,8 +245,11 @@ def _borner_journal(attente: Path, projet: str, nom: str) -> None:
         pass  # rotation au cycle suivant
     finally:
         os.close(descripteur)
-        try:
-            os.unlink(verrou)
+        try:  # repris par `Stop` (plus de 2 s, jugé périmé) : son verrou n'est pas effacé
+            with open(verrou, "rb") as fichier:
+                notre = fichier.read(64) == jeton
+            if notre:
+                os.unlink(verrou)
         except OSError:
             pass
 

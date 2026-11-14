@@ -90,7 +90,10 @@ Les lectures (`GET`) n'ont aucun effet : ni écriture, ni mutex, ni processus.
   `Stop` écrit sous `attente/depots/`, `sync` pousse vers le dépôt de données privé.
 - Chaque champ passe par `texte.nettoyer_champ` à l'écriture, à la copie et à la lecture :
   racine GitHub normalisée, filtre de secrets, borne (300 points de code, `branche` 100),
-  caractère de contrôle ou chemin absolu restant (lecteur, UNC, `/`, `~`) : champ supprimé ;
+  caractère de contrôle (fins de ligne U+2028, U+2029 et contrôles bidirectionnels compris)
+  ou chemin absolu restant n'importe où dans le champ (lecteur, UNC, mot qui commence par
+  `/x/`, `\x\`, `~/` ou `~nom/` : Git Bash `/c/…`, `/home/…`, `/Users/…` ; une commande `/clear`
+  et une URL restent permises) : champ supprimé ;
   `prochaine` ou `decision` refusé : l'état ou la décision entière est ignorée. Les schémas
   `etat_depot` et `decision` refusent tout champ inconnu, tout saut de ligne, et un `projet` ou
   un `pc` qui ne correspond pas au chemin.

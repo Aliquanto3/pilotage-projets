@@ -58,7 +58,10 @@ DEPOTS_PAR_DEFAUT = 8
 LIGNES_JOURNAL_BANC = 200
 PCS_AUTRES = ("bench-a", "bench-b")
 NOTE_BANC = "Reprendre la story 8.1 : relire la spec puis lancer les tests ciblés. " * 4
-TEXTE_MESSAGE = "Message de banc : relis la story et reprends à l'étape 3. " * 30  # ~1,7 Ko
+# ~0,9 Ko : avec la règle, la note et l'état du dépôt (story 8.3), les trois messages tiennent
+# sous le plafond de 10 000 unités (~9 300) ; le banc exige qu'ils soient tous remis.
+TEXTE_MESSAGE = "Message de banc : relis la story et reprends à l'étape 3. " * 15
+PLAFOND_CONTEXTE = 10_000  # `hooks.cycle.BORNE_CONTEXTE`, unités UTF-16
 LANCEUR_FACTICE = (
     "import os, uuid\n"
     "dossier = os.path.join(os.path.dirname(os.getcwd()), 'lancements')\n"
@@ -254,15 +257,14 @@ def mesurer(
         # préambule.
         debuts = resultat.stdout.count(rb"\n<<<PILOTAGE-MESSAGE-DEBUT id=")
         note = "## Dernière note de reprise".encode() in resultat.stdout
-        # Plafond de 10 000 unités (story 8.1) : règle, note et état du dépôt (8.3) passent avant
-        # les messages ; ceux qui ne tiennent plus restent en attente, non acquittés (le hook les
-        # lit et les cadre quand même). Les remis sont les plus anciens, au moins un.
-        if (
-            acquittes != remis[: len(acquittes)]
-            or (remis and not acquittes)
-            or debuts != len(acquittes) + avec_note + avec_depot
-        ):
+        # Règle, note, état du dépôt (8.3) et les trois messages du banc tiennent sous le
+        # plafond (voir `TEXTE_MESSAGE`) : chacun doit être remis et acquitté.
+        if acquittes != remis or debuts != len(remis) + avec_note + avec_depot:
             raise RuntimeError(f"{hook} : messages non remis ou non acquittés")
+        if hook == "session_start":
+            contexte = json.loads(resultat.stdout)["hookSpecificOutput"]["additionalContext"]
+            if len(contexte.encode("utf-16-le")) // 2 > PLAFOND_CONTEXTE:
+                raise RuntimeError(f"{hook} : plafond de {PLAFOND_CONTEXTE} unités dépassé")
         if note != avec_note:
             raise RuntimeError(f"{hook} : note de reprise absente ou inattendue")
         if ("## État du dépôt".encode() in resultat.stdout) != avec_depot:

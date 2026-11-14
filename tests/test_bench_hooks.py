@@ -138,12 +138,14 @@ def test_marqueurs_d_etat_et_de_decision_du_banc_lus():
     assert trouves.decisions == (("Garder le banc", "Mesure stable"),)
 
 
-def test_scenario_huit_etats_de_depot(capsys):
-    """SessionStart ouvre les 8 états de dépôt et injecte le bloc (le banc lève sinon) ; Stop
-    écrit l'état et le journal sans rien journaliser."""
+def test_scenario_huit_etats_de_depot(capsys, monkeypatch):
+    """SessionStart ouvre les 8 états de dépôt, injecte la note, le bloc et les trois messages,
+    tous acquittés (le banc lève sinon) ; Stop écrit l'état et le journal sans rien journaliser.
+    Budget levé : seul le contrôle des sorties est jugé ici, pas la latence du poste."""
+    monkeypatch.setattr(bench, "BUDGET_P95_MS", float("inf"))
     code = bench.main(["--appels", "2", "--etats", "20", "--messages", "3", "--depots", "8"])
     sortie = capsys.readouterr().out
-    assert code in (0, 2)
+    assert code == 0
     assert "stop : p50 " in sortie
     assert "erreurs journalisées" not in sortie
 
@@ -151,3 +153,9 @@ def test_scenario_huit_etats_de_depot(capsys):
 def test_depots_hors_bornes_refuses():
     with pytest.raises(SystemExit):
         bench.main(["--appels", "2", "--depots", "-1"])
+
+
+def test_plafond_du_banc_celui_des_hooks():
+    from pilotage.hooks import cycle
+
+    assert bench.PLAFOND_CONTEXTE == cycle.BORNE_CONTEXTE

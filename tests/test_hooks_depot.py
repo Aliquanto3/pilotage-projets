@@ -84,11 +84,13 @@ def test_hook_reel_ecrit_l_etat_filtre(racine, session):
     payload = _payload("Stop-session", racine, session, last_assistant_message=f"Fait.\n{ETAT}")
     _sans_sortie(_lancer(STOP, payload))
     objet = _lire(_fichier(racine))
-    assert list(objet) == ["schema", "projet", "pc", "session", "ecrit", "etat", "decisions"]
+    assert list(objet) == [
+        "schema", "projet", "pc", "session", "ecrit", "etat_ecrit", "etat", "decisions"
+    ]
     assert (objet["schema"], objet["projet"], objet["pc"], objet["session"]) == (
         1, PROJET, PC, session
     )
-    assert HORODATAGE.fullmatch(objet["ecrit"])
+    assert HORODATAGE.fullmatch(objet["ecrit"]) and objet["etat_ecrit"] == objet["ecrit"]
     assert objet["etat"] == {
         "prochaine": "Écrire les tests de X", "branche": "feat/x", "blocages": "aucun",
         "explore": "docs/a.md", "a_explorer": "module Y",
@@ -396,11 +398,19 @@ def test_huit_fichiers_au_plus_par_mtime(racine):
 
 
 def test_etat_suspect_refiltre_a_la_lecture(racine):
-    _deposer(racine, AUTRE, "donnees", ecrit=_iso(timedelta(hours=1)),
-             etat={"prochaine": f"voir {SECRET}"}, decisions=[_decision(f"x {SECRET}")])
-    _deposer(racine, ecrit=_iso(timedelta(hours=3)), etat={"prochaine": "sain", "explore": "/etc"})
+    _deposer(racine, ecrit=_iso(timedelta(hours=3)),
+             etat={"prochaine": "sain", "explore": "/etc/x"})
     retenu = depot.etat_du_depot(_ctx(racine))
     assert retenu.pc == PC and retenu.etat == {"prochaine": "sain"}
+
+
+def test_plus_recent_suspect_pas_de_repli_sur_un_plus_ancien(racine):
+    """Le fichier le plus récent, vidé par le filtre : rien, pas l'état plus ancien d'un
+    autre PC (il serait présenté comme l'état actuel)."""
+    _deposer(racine, AUTRE, "donnees", ecrit=_iso(timedelta(hours=1)),
+             etat={"prochaine": f"voir {SECRET}"}, decisions=[_decision(f"x {SECRET}")])
+    _deposer(racine, ecrit=_iso(timedelta(hours=3)), etat={"prochaine": "sain"})
+    assert depot.etat_du_depot(_ctx(racine)) is None
 
 
 def test_depot_en_run_rien(racine):
@@ -498,3 +508,41 @@ def test_cadrage_revalide(pc, ecrit):
     with pytest.raises(ValueError):
         cadrage.cadrer_etat_depot({"prochaine": "P"}, [], NONCE, pc=pc, ecrit=ecrit,
                                   identifiant=ID)
+
+
+# --- Revue, passe 1 : date de l'état distincte de celle des décisions ----------------------
+
+
+def test_decision_seule_ne_rafraichit_pas_la_date_de_l_etat(racine, session):
+    """Un état de 20 jours garde sa date quand une décision seule réécrit le fichier : il reste
+    périmé au démarrage, la décision du jour est injectée seule."""
+    vieux = _iso(timedelta(days=20))
+    _deposer(racine, ecrit=vieux, etat={"prochaine": "Ancienne étape"})
+    _stop(racine, session, '<!-- pilotage: decision="Garder X" -->')
+    objet = _lire(_fichier(racine))
+    assert objet["etat_ecrit"] == vieux < objet["ecrit"]
+    assert objet["etat"] == {"prochaine": "Ancienne étape"}
+    schemas.valider("etat_depot", objet)
+    retenu = depot.etat_du_depot(_ctx(racine))
+    assert retenu.etat is None and [d["decision"] for d in retenu.decisions] == ["Garder X"]
+    assert retenu.ecrit == objet["ecrit"]
+    # Nouvel état déclaré : sa date est celle de l'écriture.
+    _stop(racine, session, '<!-- pilotage: prochaine="Nouvelle étape" -->')
+    objet = _lire(_fichier(racine))
+    assert objet["etat_ecrit"] == objet["ecrit"]
+    assert depot.etat_du_depot(_ctx(racine)).etat == {"prochaine": "Nouvelle étape"}
+
+
+def test_etat_frais_decisions_perimees_ecartees(racine):
+    _deposer(racine, ecrit=_iso(timedelta(hours=1)), etat={"prochaine": "P"},
+             decisions=[_decision("Vieille", 20), _decision("Récente", 1)])
+    retenu = depot.etat_du_depot(_ctx(racine))
+    assert retenu.etat == {"prochaine": "P"}
+    assert [d["decision"] for d in retenu.decisions] == ["Récente"]
+
+
+def test_en_tete_porte_la_date_de_l_etat(racine):
+    date_etat = _iso(timedelta(days=3))
+    _deposer(racine, ecrit=_iso(timedelta(hours=1)), etat={"prochaine": "P"},
+             etat_ecrit=date_etat)
+    assert depot.etat_du_depot(_ctx(racine)).ecrit == date_etat
