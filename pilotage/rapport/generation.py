@@ -5,6 +5,7 @@ Lit les données, calcule la synthèse, rend la page et l'écrit de façon atomi
 """
 
 import dataclasses
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -43,12 +44,25 @@ def generer(semaine_iso: str, maintenant: datetime) -> Path:
     return cible
 
 
-def appliquer_retention() -> None:
+def appliquer_retention() -> int:
     """Ne garde que les `CONSERVES` rapports les plus récents (par nom de semaine). Seuls les
-    fichiers `semaine-AAAA-Www.html` comptent et peuvent être supprimés."""
-    noms = sorted(
-        p.name for p in chemins.rapports().iterdir()
-        if _NOM_RAPPORT.fullmatch(p.name) and p.is_file()
-    )
+    fichiers `semaine-AAAA-Www.html` comptent et peuvent être supprimés. Chaque suppression est
+    isolée (un fichier verrouillé n'arrête pas les autres) ; renvoie le nombre d'échecs."""
+    dossier = chemins.rapports()
+    try:
+        with os.scandir(dossier) as entrees:
+            noms = sorted(
+                e.name for e in entrees
+                if _NOM_RAPPORT.fullmatch(e.name) and e.is_file(follow_symlinks=False)
+            )
+    except FileNotFoundError:
+        return 0
+    echecs = 0
     for nom in noms[:-CONSERVES]:
-        (chemins.rapports() / nom).unlink()
+        try:
+            (dossier / nom).unlink()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            echecs += 1
+    return echecs

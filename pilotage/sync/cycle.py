@@ -111,18 +111,25 @@ def _copier_instantane(ctx: Contexte) -> None:
 def _rapport(ctx: Contexte) -> None:
     """Rapport de la semaine ISO précédente (heure locale), écrit au premier cycle de la semaine
     s'il manque (story 9.3, FR46) ; s'il existe, rien n'est lu ni recalculé. Une erreur (quelle
-    qu'elle soit) n'arrête pas le cycle : une alerte et une ligne de journal fixe, sans contenu."""
+    qu'elle soit) n'arrête pas le cycle : une alerte et une ligne de journal fixe, sans contenu.
+    La rétention est séparée et rejouée à chaque cycle (un `scandir` de `rapports/`) : un fichier
+    verrouillé est repris au cycle suivant, sans faire dire « non généré »."""
     try:
         instant = _maintenant()
         locale = instant.astimezone(lecture.FuseauLocal())
         precedente = generation.semaine_courante(locale - timedelta(days=7))
-        if chemins.rapport_semaine(precedente).exists():
-            return
-        generation.generer(precedente, instant)
-        generation.appliquer_retention()
+        if not chemins.rapport_semaine(precedente).exists():
+            generation.generer(precedente, instant)
     except Exception as erreur:  # noqa: BLE001 (aucune erreur du rapport n'arrête le cycle)
         ctx.rapport_echec = True
         journaliser(f"rapport : non généré ({type(erreur).__name__})")
+    try:
+        echecs = generation.appliquer_retention()
+    except Exception as erreur:  # noqa: BLE001 (la rétention n'arrête pas le cycle)
+        journaliser(f"rapport : rétention non appliquée ({type(erreur).__name__})")
+    else:
+        if echecs:
+            journaliser(f"rapport : rétention incomplète ({echecs} fichier(s))")
 
 
 def _commiter(ctx: Contexte) -> None:

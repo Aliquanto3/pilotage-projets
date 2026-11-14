@@ -2,6 +2,7 @@
 """Étape `rapport` de `sync` (story 9.3, FR46) : rapport de la semaine ISO précédente."""
 
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -122,3 +123,45 @@ def test_changement_d_annee(distant, github, gh, monkeypatch, instant, attendue)
     monkeypatch.setattr(cycle, "_maintenant", lambda: local)
     assert synchro(github) == 0
     assert chemins.rapport_semaine(attendue).is_file()
+
+
+def test_retention_sans_dossier():
+    assert not chemins.rapports().exists()
+    assert generation.appliquer_retention() == 0
+
+
+DEBLOQUE = Path.unlink
+
+
+def verrouiller(monkeypatch, *noms):
+    """Simule un fichier ouvert ailleurs (Windows) : `unlink` refusé pour ces noms."""
+    vrai = Path.unlink
+
+    def unlink(self, *args, **kwargs):
+        if self.name in noms:
+            raise PermissionError("verrouillé")
+        return vrai(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+
+
+def test_retention_un_fichier_verrouille_n_arrete_pas_les_autres(monkeypatch):
+    poser_rapports(*semaines(15))
+    verrouiller(monkeypatch, "semaine-2025-W01.html")
+    assert generation.appliquer_retention() == 1
+    noms = {p.name for p in chemins.rapports().iterdir()}
+    assert "semaine-2025-W01.html" in noms
+    assert not {"semaine-2025-W02.html", "semaine-2025-W03.html"} & noms
+
+
+def test_retention_en_echec_ni_alerte_ni_non_genere_et_reprise(distant, github, gh, monkeypatch):
+    poser_rapports(*semaines(12))
+    verrouiller(monkeypatch, "semaine-2025-W01.html")
+    assert synchro(github) == 0
+    assert chemins.rapport_semaine(PRECEDENTE).is_file()
+    assert catalogue.RAPPORT_NON_GENERE not in dict(alertes_sync())
+    assert journal() == [f"{INSTANT:%Y-%m-%d %H:%M} rapport : rétention incomplète (1 fichier(s))"]
+    monkeypatch.setattr(Path, "unlink", DEBLOQUE)  # fichier libéré
+    assert synchro(github) == 0  # rapport présent : la rétention est quand même reprise
+    assert not chemins.rapport_semaine("2025-W01").exists()
+    assert len(list(chemins.rapports().iterdir())) == 12
