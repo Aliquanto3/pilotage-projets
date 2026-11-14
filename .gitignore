@@ -8,3 +8,12 @@ mesures-couts/
 # Fichiers locaux de la racine installée (~/.claude/pilotage), jamais suivis
 /config.json
 /desactive
+
+# Captures de l'agent verif-front (agent-cost-kit)
+.claude/cost-kit/verif-front/
+.claude/cost-kit/.blocages
+
+# Installation locale de BMAD et réglages propres au poste, jamais suivis
+/_bmad/
+/.claude/skills/
+/.claude/settings.local.json
