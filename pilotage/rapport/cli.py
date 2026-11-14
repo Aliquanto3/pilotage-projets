@@ -46,10 +46,10 @@ def main(arguments: list[str], maintenant: datetime | None = None) -> int:
     parser.add_argument("--semaine", help="semaine ISO AAAA-Www (défaut : la semaine courante)")
     ns = parser.parse_args(arguments)
     maintenant = maintenant or datetime.now(UTC)
-    voulue = ns.semaine or semaine_courante(maintenant)
+    voulue = ns.semaine if ns.semaine is not None else semaine_courante(maintenant)
     try:
         semaine.bornes_semaine(voulue, lecture.FuseauLocal())
-    except ValueError:
+    except (ValueError, OverflowError):
         print("rapport : semaine ISO AAAA-Www attendue (semaine existante)", file=sys.stderr)
         return 2
     try:
@@ -64,6 +64,9 @@ def main(arguments: list[str], maintenant: datetime | None = None) -> int:
         chemins.ecrire_atomique(cible, contenu)
     except _ERREURS as exc:
         print(f"{ERREUR} ({type(exc).__name__})", file=sys.stderr)
+        return 1
+    except Exception as exc:  # noqa: BLE001 : filet, jamais de traceback (chemins absolus)
+        print(f"{ERREUR} (inattendue : {type(exc).__name__})", file=sys.stderr)
         return 1
     print(affiche)
     return 0

@@ -44,7 +44,9 @@ def test_semaine_53_existante(capsys):
     assert capsys.readouterr().out == "rapports/semaine-2026-W53.html\n"
 
 
-@pytest.mark.parametrize("semaine", ["2026-46", "2026-W54", "2026-W00", "2021-W53", "26-W01"])
+@pytest.mark.parametrize(
+    "semaine", ["2026-46", "2026-W54", "2026-W00", "2021-W53", "26-W01", "", "9999-W52"]
+)
 def test_semaine_invalide_code_2_rien_ecrit(capsys, semaine):
     avant = arbre()
     assert cli.main(["--semaine", semaine], MAINTENANT) == 2
@@ -81,6 +83,26 @@ def test_erreur_d_ecriture_code_1_sans_tmp_ni_chemin(capsys):
     assert str(chemins.racine_locale()) not in sortie.err and "rapports" not in sortie.err
     assert list(chemins.rapports().glob("*.tmp")) == []
     assert cible.is_dir() and list(cible.iterdir()) == []
+
+
+def test_semaine_extreme_sans_traceback(capsys):
+    # 0001-W01 : la comparaison remonte avant l'an 1 ; aucun traceback ne doit sortir.
+    assert cli.main(["--semaine", "0001-W01"], MAINTENANT) in (0, 1)
+    assert "Traceback" not in capsys.readouterr().err
+
+
+def test_erreur_inattendue_code_1_message_fixe(capsys, monkeypatch):
+    racine = str(chemins.racine_locale())
+
+    def panne(*_args, **_kwargs):
+        raise KeyError(f"{racine}{os.sep}secret")
+
+    monkeypatch.setattr(cli.semaine, "synthese_semaine", panne)  # injection de panne
+    assert cli.main(["--semaine", "2026-W46"], MAINTENANT) == 1
+    sortie = capsys.readouterr()
+    assert sortie.out == ""
+    assert sortie.err == f"{cli.ERREUR} (inattendue : KeyError)\n"
+    assert not chemins.rapports().exists()
 
 
 def test_rapports_est_un_fichier_code_1(capsys):

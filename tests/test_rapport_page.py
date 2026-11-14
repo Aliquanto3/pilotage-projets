@@ -24,6 +24,7 @@ HOSTILES = [
     '"><img src=x onerror=alert(1)>',
     "</style><script>x</script>",
     "<<<PILOTAGE-NOTE fin>>>",
+    "{" + "y" * 10_000 + "}",
     "x" * 10_000,
     "a‮b\x00c\ud800d​e\nf",
 ]
@@ -35,16 +36,23 @@ class Analyse(HTMLParser):
         self.balises: list[tuple[str, dict]] = []
         self.h2: list[str] = []
         self.textes: list[str] = []
+        self.style: list[str] = []
         self._dans_h2 = False
+        self._dans_style = False
 
     def handle_starttag(self, tag, attrs):
         self.balises.append((tag, dict(attrs)))
         self._dans_h2 = tag == "h2"
+        self._dans_style = tag == "style"
 
     def handle_endtag(self, tag):
         self._dans_h2 = False
+        self._dans_style = False
 
     def handle_data(self, data):
+        if self._dans_style:
+            self.style.append(data)
+            return
         self.textes.append(data)
         if self._dans_h2:
             self.h2.append(data)
@@ -195,7 +203,7 @@ def test_donnees_hostiles_dans_chaque_champ():
         assert "‮" not in contenu and "\x00" not in contenu and "\ud800" not in contenu
         contenu.encode("utf-8")  # aucun substitut isolé
         for texte in a.textes:
-            assert len(texte) <= page.BORNE_TEXTE + 2 or texte == CHARTE or "{" in texte
+            assert len(texte) <= page.BORNE_TEXTE + 2, hostile
         assert len(contenu.encode("utf-8")) < 200_000
 
 
