@@ -16,7 +16,7 @@ PILOTAGE_AUTORISE: dict[str, set[str]] = {
     "hooks": {"noyau", "chemins", "hooks"},
     "scan": {"noyau", "chemins", "scan"},
     "sync": {"noyau", "chemins", "scan", "rapport", "sync"},
-    "serveur": {"noyau", "chemins", "sync", "serveur"},
+    "serveur": {"noyau", "chemins", "sync", "rapport", "serveur"},
     "installation": {"noyau", "chemins", "installation"},
     "rapport": {"noyau", "chemins", "scan", "rapport"},
     "lancer": {"noyau", "chemins", "scan", "sync", "serveur", "installation", "rapport"},

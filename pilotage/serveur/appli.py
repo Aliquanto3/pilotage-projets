@@ -7,7 +7,8 @@ routage, dans l'ordre M10 :
 2. `Origin` présent et différent de l'appli, sinon 403 ;
 3. préfixe `/api/` ⇒ `Authorization: Bearer <jeton>` comparé par `hmac.compare_digest`,
    sinon 401 ;
-4. routage : route inconnue 404, méthode non permise 405 avec `Allow` ; un `<id>` ou `<projet>`
+4. `/api/` avec un `?` (paramètre de requête) : 400, aucun gestionnaire n'en lit ;
+5. routage : route inconnue 404, méthode non permise 405 avec `Allow` ; un `<id>` ou `<projet>`
    du chemin invalide selon AD-9 rend 400 (`routes.valider_parametres`).
 
 L9 : une requête sans `Origin` est acceptée parce que le jeton protège toute route `/api/` ;
@@ -170,6 +171,8 @@ def verifier_requete(serveur: ServeurPilotage, methode: str, cible: str, entetes
                 refus=Reponse(401, erreur="jeton absent ou invalide",
                               entetes=(("WWW-Authenticate", "Bearer"),))
             )
+        if "?" in cible:  # aucun appel du front n'en porte (story 9.4) : rien n'est lu en query
+            return Decision(refus=Reponse(400, erreur="paramètre refusé"))
         route, parametres, permises = routes_api.router(serveur.table, methode, segments)
         if route is not None:
             refus = routes_api.valider_parametres(route, parametres)

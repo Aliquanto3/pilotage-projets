@@ -110,6 +110,10 @@ Le code (ce dépôt) et les données (le dépôt privé) sont deux dépôts sép
    Écrit une page HTML autonome (sans script, sans lien, sans ressource externe) sous
    `%LOCALAPPDATA%\pilotage-projets\rapports\semaine-AAAA-Www.html`, calculée sans modèle à
    partir des seules données de pilotage. Le rapport reste sur ce PC : `sync` ne le copie pas.
+   Dans l'appli, le bouton « Rapport de la semaine » de la barre du haut génère la page de la
+   semaine en cours et l'ouvre : l'ouverture suit l'application associée aux fichiers `.html`
+   (ou la variable d'environnement `BROWSER`, si elle est posée). Si rien ne s'ouvre, la page est
+   quand même écrite à l'emplacement ci-dessus.
 
 L'auteur publie le runtime vers un dépôt de configuration privé et le restaure sur chaque PC avec
 un script qui n'est pas dans ce dépôt. C'est sa façon de faire, pas la seule : voir

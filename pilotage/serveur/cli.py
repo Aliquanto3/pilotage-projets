@@ -7,7 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from pilotage import chemins
-from pilotage.serveur import enfants, processus, relance
+from pilotage.serveur import enfants, processus, rapport, relance
 from pilotage.serveur.appli import ServeurPilotage
 
 
@@ -30,6 +30,7 @@ def main(
         "--sans-sync", action="store_true", help="ne pas lancer de synchro au démarrage"
     )
     options = analyseur.parse_args(argv)
+    rapport.configurer(navigateur)  # bouton « Rapport de la semaine » (story 9.4)
     try:
         port = options.port if options.port is not None else chemins.port_serveur()
     except chemins.ErreurConfiguration as exc:
