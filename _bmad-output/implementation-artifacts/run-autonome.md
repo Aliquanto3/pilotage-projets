@@ -77,3 +77,51 @@ Une ligne par étape : `- AAAA-MM-JJ HH:MM · story · étape · résultat · co
 
 - 2026-11-14 18:47 · run · décision · cadrage du run (epics 8 et 9) ; autorisations de l'utilisateur du 2026-11-14 · —
 - 2026-11-14 19:03 · run · PR · préalable chore/etat-run-sprint7 ouverte · —
+- 2026-11-14 19:06 · 9.1 · dev · lancé (Sonnet, worktree pilotage-9-1) · —
+- 2026-11-14 19:06 · 8.2 · décision · spec écrite (`specs/8-2-precompact.md`) d'après la doc des hooks ; relecture Opus lancée · —
+- 2026-11-14 19:09 · 8.2 · décision · relecture Opus de la spec : 2 bloquants et 8 corrections intégrés (ordre des événements, tests à réaligner, isolement de l'essai, garde du script absent) · —
+- 2026-11-14 19:09 · 8.2 · dev · lancé (Opus, worktree pilotage-8-2) · —
+- 2026-11-14 19:14 · run · fusion · préalable chore/etat-run-sprint7 (#11) MERGED · 12e096d
+- 2026-11-14 19:17 · 9.1 · dev · fini, poussé (CI de branche lancée) · 285524a
+- 2026-11-14 19:18 · 9.1 · PR · #12 en brouillon (CI de branche) ; second avis lancé · 285524a
+- 2026-11-14 19:21 · 8.2 · dev · fini (Opus) ; essai réel : stdout de PreCompact pris dans le résumé, SessionStart compact réinjecté ; rebasé, PR #13 en brouillon ; second avis lancé · 493383d
+- 2026-11-14 19:21 · 9.1 · second-avis · 8 constats (5 medium, 3 low), `reprise/second-avis-9.1.md` · 285524a
+- 2026-11-14 19:21 · 9.1 · décision · arête `rapport → scan` admise (lecture des faits, comme `sync → scan`), la revue la vérifie ; reviewer Opus lancé · 285524a
+- 2026-11-14 19:25 · 8.2 · second-avis · 4 low, aucun Important, `reprise/second-avis-8.2.md` ; reviewer Opus lancé · 493383d
+- 2026-11-14 19:39 · 9.1 · review · passe 1 : 1 Important corrigé (fuseau aux changements d'heure), 4 nits, 3 rejetés ; `reprise/revue-9.1.md` · 2517f4d
+- 2026-11-14 19:39 · 9.1 · CI · verte (Windows) · 2517f4d
+- 2026-11-14 19:39 · 9.1 · fusion · #12 MERGED · 5528e42
+- 2026-11-14 19:41 · 9.2 · décision · spec écrite (`specs/9-2-page-rapport.md`) ; emplacement des rapports à confirmer (`decisions-a-confirmer.md`), la story se développe, sa fusion attend · —
+- 2026-11-14 19:41 · 8.2 · review · passe 1 : aucun Important, 2 nits corrigés (doc d'installation, chemin générique), 1 documenté, 1 rejeté ; `reprise/revue-8.2.md` · d3216b4
+- 2026-11-14 19:41 · 8.2 · CI · verte · d3216b4
+- 2026-11-14 19:41 · 8.2 · décision · bench à vide : session_start p95 98,0 ms, pre_compact 48,2 ms (marge faible pour 8.3) ; fusion sans attente humaine (consigne fixe voulue par l'epic, aucun point de sécurité nouveau) · d3216b4
+- 2026-11-14 19:42 · 8.2 · fusion · #13 MERGED · f61ddb2
+- 2026-11-14 19:44 · 9.2 · décision · relecture Opus de la spec : 2 bloquants (clé de config inexistante, écart à FR45 confirmé et recommandé), 10 corrections intégrées · —
+- 2026-11-14 19:44 · 8.3 · décision · spec écrite (`specs/8-3-etat-depot.md`) : état et décisions par marqueur, écrits par `Stop` hors dépôt ; proposition précisée dans `decisions-a-confirmer.md` ; relecture Opus lancée · —
+- 2026-11-14 19:45 · 9.2 · dev · lancé (Opus, worktree pilotage-9-2) · —
+- 2026-11-14 19:47 · 8.3 · décision · relecture Opus de la spec : 3 bloquants (projet de Stop, concurrence, chemins) et 11 corrections intégrées ; granularité et péremption ajoutées à `decisions-a-confirmer.md` · —
+- 2026-11-14 19:47 · 8.3 · dev · lancé (Opus, worktree pilotage-8-3) · —
+- 2026-11-14 19:54 · 9.2 · dev · fini (Opus) ; spec retirée du commit de story (fichier d'état), PR #14 en brouillon ; second avis lancé · 83a26b5
+- 2026-11-14 19:56 · 9.2 · second-avis · 3 medium, 3 low, `reprise/second-avis-9.2.md` ; reviewer Opus lancé · 83a26b5
+- 2026-11-14 20:09 · 9.2 · review · passe 1 : 3 Important corrigés (OverflowError, filet d'erreur sans traceback, `--semaine ""`), 1 nit corrigé, 2 rejetés ; `reprise/revue-9.2.md` · fb168c7
+- 2026-11-14 20:09 · 9.2 · CI · verte · fb168c7
+- 2026-11-14 20:09 · 9.2 · attente humaine · fusion suspendue à la décision sur l'emplacement des rapports ; V3 empilée sur `story/9-2` · fb168c7
+- 2026-11-14 20:11 · 9.2 · review · passe 2 : aucun Important, 2 nits notés · fb168c7
+- 2026-11-14 20:11 · 9.3 · dev · lancé (Sonnet, worktree pilotage-9-3, empilée sur story/9-2) · —
+- 2026-11-14 20:12 · 9.4 · décision · spec écrite (`specs/9-4-rapport-appli.md`) ; relecture Opus après libération d'un agent (plafond de 2) · —
+- 2026-11-14 20:19 · 9.3 · dev · fini (Sonnet) ; code d'alerte `rapport-non-genere` (le schéma refuse `_`) accepté ; PR en brouillon empilée sur #14 ; second avis lancé · 458f9a2
+- 2026-11-14 20:23 · 9.3 · second-avis · 5 low, aucun Important, `reprise/second-avis-9.3.md` ; reviewer Opus lancé · 458f9a2
+- 2026-11-14 20:23 · 8.3 · dev · fini (Opus) ; spec retirée de la branche ; banc chargé : session_start p95 112 ms (base 102), stop 96 ms (base 77) ; 2 décisions ajoutées (budget, messages repoussés) ; PR #16 en brouillon ; second avis lancé · 74a0639
+- 2026-11-14 20:27 · 8.3 · second-avis · 3 medium, 4 low, `reprise/second-avis-8.3.md` ; reviewer Opus lancé · 74a0639
+- 2026-11-14 20:40 · 9.3 · review · passe 1 : 1 Important corrigé (rétention séparée, reprise à chaque cycle), 4 nits rejetés, 1 documenté ; `reprise/revue-9.3.md` · c4c5c32
+- 2026-11-14 20:40 · 9.3 · CI · verte · c4c5c32
+- 2026-11-14 20:40 · 9.4 · décision · relecture Opus de la spec lancée ; passe 2 de 9.3 ensuite (plafond de 2 agents) · —
+- 2026-11-14 20:43 · 9.4 · décision · relecture Opus de la spec : 3 bloquants (refus du corps et du paramètre, erreurs sans journal, tests du front à créer) et 11 corrections intégrées · —
+- 2026-11-14 20:43 · 9.4 · dev · lancé (Opus, worktree pilotage-9-4, empilée sur story/9-3) · —
+- 2026-11-14 20:50 · 9.4 · dev · fini (Opus) ; refus global du paramètre de requête sur /api/ ; PR en brouillon empilée sur #15 ; second avis lancé · 62ecbc6
+- 2026-11-14 20:50 · 9.4 · report · verif-front non joué : aucun serveur Playwright sur ce poste ; vérification de l'écran reportée à la recette de l'utilisateur · 62ecbc6
+- 2026-11-14 20:50 · 8.3 · review · passe 1 : 3 Important corrigés (chemins absolus partout, date propre à l'état, banc rétabli en contrôle exact), 3 nits corrigés, 1 rejeté ; `reprise/revue-8.3.md` ; passe 2 lancée · 4b473aa
+- 2026-11-14 20:50 · 8.3 · CI · verte · 4b473aa
+- 2026-11-14 20:53 · 9.4 · second-avis · 5 low, aucun Important, `reprise/second-avis-9.4.md` ; reviewer Opus lancé (avec la passe 2 de 9.3) · 62ecbc6
+- 2026-11-14 20:56 · 8.3 · review · passe 2 : aucun Important, 4 nits reportés (UNC `//`, chemin collé à certains signes, décision seule qui masque un état d'un autre PC, ancienne version qui ignore `etat_ecrit`), 1 rejeté · 4b473aa
+- 2026-11-14 20:56 · 8.3 · attente humaine · fusion suspendue aux décisions de `decisions-a-confirmer.md` (emplacement, granularité, budget, messages, filtre des chemins) ; banc à vide à rejouer · 4b473aa
