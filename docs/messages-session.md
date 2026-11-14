@@ -49,3 +49,16 @@ la règle du marqueur, la dernière note de reprise du projet, puis les messages
 - Sans note : la sortie est celle d'avant (règle seule, ou règle et messages), à l'octet près,
   tant que règle et messages tiennent sous le plafond.
 - Sous-agent, dossier non suivi : rien n'est lu ni émis.
+
+## Compaction (story 8.2)
+
+- Avant : le hook `PreCompact` écrit sur stdout une consigne fixe, en texte brut
+  (`pilotage.hooks.compaction.CONSIGNE`, 1 500 caractères au plus), que Claude Code ajoute aux
+  instructions du résumé : garder les décisions et leur raison, les fichiers touchés, la
+  prochaine action, les blocages et ce qui attend l'utilisateur ; ne pas recopier les blocs du
+  pilotage ; mettre à jour la note de reprise au prochain arrêt. Aucune donnée de session ni du
+  payload (`trigger`, `custom_instructions` ne sont pas lus) ; rien d'écrit sur le disque. Jamais
+  de code 2 ni de `decision` (ils bloqueraient la compaction). Sous-agent, dossier non suivi ou
+  hors racine : rien.
+- Après : `SessionStart` arrive avec `source=compact` et réinjecte règle, dernière note et
+  messages non acquittés, comme au démarrage (story 8.1).

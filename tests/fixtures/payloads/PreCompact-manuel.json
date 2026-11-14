@@ -1,0 +1,9 @@
+{
+  "session_id": "session-0008",
+  "transcript_path": "{{HOME}}\\.claude\\projects\\{{SLUG_PROJET}}\\00000000-0000-4000-8000-000000000000.jsonl",
+  "cwd": "{{RACINE_GITHUB}}\\_sandbox\\capture-payloads",
+  "prompt_id": "prompt-0001",
+  "hook_event_name": "PreCompact",
+  "trigger": "manual",
+  "custom_instructions": "garde le mot ZEBRE"
+}

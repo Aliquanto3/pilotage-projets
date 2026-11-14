@@ -45,6 +45,21 @@
         ]
       }
     ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{PYTHON_PILOTAGE}}",
+            "args": [
+              "-I",
+              "-S",
+              "{{RACINE_PILOTAGE}}/pilotage/hooks/pre_compact.py"
+            ]
+          }
+        ]
+      }
+    ],
     "Notification": [
       {
         "hooks": [

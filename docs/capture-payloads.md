@@ -50,6 +50,30 @@ du terminal sans `/exit`.
 `notification_type`, `message`, `title` ne sont pas observés. Les fixtures `Notification-*-a-confirmer`
 donnent une forme supposée d'après la documentation de Claude Code.
 
+## `PreCompact` et compaction (story 8.2)
+Confirmé le 2026-11-14, Claude Code 2.1.325, Windows 11 : `claude -p --model haiku
+--setting-sources "" --settings <fichier temporaire>` (réglages de l'utilisateur non chargés),
+dossier de travail temporaire, hooks de capture propres à l'essai. Sous Git Bash, `/compact` en
+argument est réécrit en chemin Windows (`<dossier de Git>/compact`) : poser
+`MSYS_NO_PATHCONV=1`.
+- `claude -p --resume <id> "/compact garde le mot ZEBRE"` est accepté et compacte la session.
+  Ordre observé : `SessionStart` `source=resume`, `PreCompact`, `SessionStart` `source=compact`,
+  `PostCompact`.
+- `PreCompact` : champs communs (`session_id`, `transcript_path`, `cwd`), `prompt_id`,
+  `hook_event_name`, `trigger` (`manual`), `custom_instructions` (texte après `/compact`). Pas
+  d'`agent_id` en session principale. Fixture : `PreCompact-manuel.json`. `trigger=auto` non
+  provoqué (doc : `custom_instructions` vaut alors `null`).
+- Stdout de `PreCompact` (texte brut, code 0) : ajouté aux instructions du résumé. Un hook qui
+  demande « mentionne le mot CORMORAN » : CORMORAN et ZEBRE figurent tous deux dans
+  `compact_summary` (le résumé cite « les instructions de compaction » des deux sources).
+- Accents : « décisions » et « résumé » arrivent intacts dans `compact_summary` (UTF-8 sans BOM
+  sur stdout, aucun caractère de remplacement) ; la consigne garde ses accents.
+- `SessionStart` `source=compact` : champs communs, `prompt_id`, `model`. Son `additionalContext`
+  (« HERON ») est retrouvé par une question posée à la reprise suivante (`--resume`, nouveau
+  `SessionStart` `source=resume` sans HERON) : la réinjection après compaction tient. La fixture
+  `SessionStart-compact-a-confirmer.json` garde son nom (geste interactif non joué).
+- Compaction d'un sous-agent : non essayée ; garde par `agent_id` quand même (AD-2).
+
 ## À confirmer par les gestes de l'utilisateur
 1. `AskUserQuestion` : `Notification` ou `PreToolUse` ? Type et texte de la question.
 2. Permission native : `notification_type` (`permission_prompt` attendu), `message`, `title`.

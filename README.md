@@ -17,8 +17,8 @@ n'a pas été rejoué.
 
 ## Comment ça marche
 
-1. Des hooks Claude Code (début et fin de session, prompt, notification) écrivent de petits
-   fichiers d'état dans un dossier local (`%LOCALAPPDATA%\pilotage-projets` par défaut).
+1. Des hooks Claude Code (début et fin de session, prompt, arrêt, compaction, notification)
+   écrivent de petits fichiers d'état dans un dossier local (`%LOCALAPPDATA%\pilotage-projets` par défaut).
 2. Un scan lit les dépôts git de `Documents\GitHub` (branches, commits récents, informations de
    `gh`).
 3. `lancer.py sync` copie ces faits dans un clone local de la branche `donnees` d'un dépôt GitHub
