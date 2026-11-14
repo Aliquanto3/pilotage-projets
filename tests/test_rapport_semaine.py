@@ -384,3 +384,77 @@ def test_sessions_archivees_et_exclus_lus(depot_donnees):
     entree_ = lecture.lire_entree(SEMAINE, MAINTENANT)
     s = synthese_semaine(entree_, SEMAINE, MAINTENANT)
     assert [(x["projet"], x["pc"], x["nombre"]) for x in s.sessions] == [("alpha", "pc-local", 1)]
+
+
+# --- changement d'heure (revue, passe 1) ------------------------------------------------------
+
+class _Paris2026(lecture.FuseauLocal):
+    """Règle de Paris en 2026 à la place de celle du poste : +01:00, puis +02:00 du 29 mars
+    01:00Z au 25 octobre 01:00Z. Seules les deux questions posées au système sont remplacées."""
+
+    ETE = (datetime(2026, 3, 29, 1), datetime(2026, 10, 25, 1))  # UTC naïf
+
+    def _decalage_utc(self, naif_utc):
+        return timedelta(hours=2 if self.ETE[0] <= naif_utc < self.ETE[1] else 1)
+
+    def _decalage(self, naif):
+        # heure locale : l'heure sautée (02:00-03:00 le 29 mars) prend l'ancien décalage ;
+        # l'heure répétée (02:00-03:00 le 25 octobre) prend l'heure d'été sauf si fold=1
+        if datetime(2026, 3, 29, 2) <= naif < datetime(2026, 10, 25, 2):
+            return timedelta(hours=2)
+        if datetime(2026, 10, 25, 2) <= naif < datetime(2026, 10, 25, 3) and not naif.fold:
+            return timedelta(hours=2)
+        return timedelta(hours=1)
+
+
+@pytest.mark.parametrize(("semaine", "avant", "apres"), [
+    ("2026-W13", "+01:00", "+02:00"),  # passage à l'heure d'été le dimanche 29 mars
+    ("2026-W43", "+02:00", "+01:00"),  # passage à l'heure d'hiver le dimanche 25 octobre
+])
+def test_bornes_d_une_semaine_de_changement_d_heure(semaine, avant, apres):
+    debut, fin = bornes_semaine(semaine, _Paris2026())
+    assert debut.isoformat().endswith(avant) and fin.isoformat().endswith(apres)
+    assert (fin - debut.astimezone(UTC)) == timedelta(days=7, hours=int(avant[2]) - int(apres[2]))
+
+
+def test_session_du_lundi_suivant_hors_de_la_semaine_de_changement_d_heure():
+    # lundi 30 mars 00:30 heure d'été = 2026-03-29T22:30Z : semaine W14, pas W13
+    tardive = session(SESSION_1, debut="2026-03-29T22:30:00Z")
+    dimanche = session(SESSION_2, debut="2026-03-29T21:30:00Z")  # dimanche 23:30 locale
+    ent = entree({"alpha": faits()}, sessions=[tardive, dimanche], fuseau=_Paris2026())
+    s = synthese_semaine(ent, "2026-W13", datetime(2026, 4, 2, tzinfo=UTC))
+    assert [(x["nombre"], x["premiere"]) for x in s.sessions] == [(1, "2026-03-29T21:30:00Z")]
+
+
+def test_fuseau_local_convertit_chaque_instant_avec_sa_regle():
+    paris = _Paris2026()
+    for instant in (datetime(2026, 3, 29, 0, 59, tzinfo=UTC), datetime(2026, 3, 29, 1, tzinfo=UTC),
+                    datetime(2026, 10, 25, 0, 30, tzinfo=UTC),
+                    datetime(2026, 10, 25, 1, 30, tzinfo=UTC)):
+        local = instant.astimezone(paris)
+        assert local.astimezone(UTC) == instant  # aller-retour exact, heure répétée comprise
+    assert datetime(2026, 10, 25, 0, 30, tzinfo=UTC).astimezone(paris).isoformat() \
+        == "2026-10-25T02:30:00+02:00"
+    assert datetime(2026, 10, 25, 1, 30, tzinfo=UTC).astimezone(paris).isoformat() \
+        == "2026-10-25T02:30:00+01:00"
+
+
+def test_fuseau_local_suit_le_systeme_sur_chaque_borne():
+    for semaine in ("2026-W13", "2026-W43"):
+        for borne in bornes_semaine(semaine, lecture.FuseauLocal()):
+            naif = borne.replace(tzinfo=None)
+            assert borne.utcoffset() == naif.astimezone().utcoffset()
+            assert borne.astimezone(UTC).astimezone(lecture.FuseauLocal()) == borne
+
+
+def test_synthese_nomme_l_approximation_des_livraisons():
+    assert "ne datent pas les tags" in synth(jeu_complet()).note_livraisons
+
+
+def test_arete_rapport_scan_bornee_a_la_lecture():
+    """`rapport → scan` sert à lire les faits : `semaine.py` n'importe que le noyau."""
+    arbre = ast.parse((RACINE_RAPPORT / "semaine.py").read_text(encoding="utf-8"))
+    modules = {n.module for n in ast.walk(arbre) if isinstance(n, ast.ImportFrom)}
+    modules |= {a.name for n in ast.walk(arbre) if isinstance(n, ast.Import) for a in n.names}
+    assert {m for m in modules if m.startswith("pilotage")} <= {"pilotage.noyau"} | {
+        m for m in modules if m.startswith("pilotage.noyau.")}

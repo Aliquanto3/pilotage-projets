@@ -25,6 +25,10 @@ from pilotage.noyau.assemblage import lire_horodatage
 
 INDISPONIBLE = "faits indisponibles"
 SANS_COMPARAISON = "pas de point de comparaison"
+# Les données ne datent pas les tags : une release est un tag nouveau depuis le début de semaine.
+LIVRAISON_APPROCHEE = (
+    "release : tag nouveau depuis le début de la semaine (les données ne datent pas les tags)"
+)
 _CODE_FAITS_ABSENTS = "faits-absents"  # code de raison de `calculer_action`, pour le libellé seul
 _SEMAINE = re.compile(r"([0-9]{4})-W([0-9]{2})")
 _FORME = "%Y-%m-%dT%H:%M:%SZ"
@@ -44,6 +48,7 @@ class Synthese:
     livraisons: tuple  # {projet, type: "release"|"phase", ...}
     sessions: tuple  # {projet, pc, nombre, premiere, derniere}
     alertes: tuple  # textes
+    note_livraisons: str = LIVRAISON_APPROCHEE  # approximation de « tag daté dans la semaine »
 
 
 def bornes_semaine(semaine: str, fuseau: tzinfo) -> tuple[datetime, datetime]:
@@ -124,8 +129,10 @@ def _changements(avant: Mapping[str, dict], apres: Mapping[str, dict]) -> tuple:
 def _livraisons(debut: Mapping, fin: Mapping, noms: Iterable[str]) -> tuple:
     """Release nouvelle (tag différent) et changement de topic `status-*` entre les deux états.
 
-    Les instantanés ne datent pas les tags : « daté dans la semaine » devient « nouveau depuis
-    le début de la semaine ».
+    Approximation (`LIVRAISON_APPROCHEE`, rendue dans `Synthese.note_livraisons`) : les
+    instantanés ne portent que le dernier tag, sans date ; « tag daté dans la semaine » devient
+    « tag de fin de semaine différent de celui du début ». Deux releases dans la semaine n'en
+    font qu'une (la dernière) ; un tag retiré puis remis n'est pas vu.
     """
     lignes = []
     for nom in sorted(noms, key=_par_nom):

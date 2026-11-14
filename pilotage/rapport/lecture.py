@@ -1,7 +1,8 @@
 """Lecture des données du rapport (story 9.1) : seule couche du rapport qui touche aux fichiers.
 
 Fin de semaine : l'état courant (comme le scan) tant que la semaine n'est pas finie, sinon le
-dernier commit de `donnees/` avant le lundi suivant. Début de semaine : le dernier commit de
+dernier commit de `donnees/` avant le lundi suivant (à défaut de commit lisible, l'état courant en
+tient lieu). Début de semaine : le dernier commit de
 `donnees/` strictement avant le lundi 00:00 (heure locale), `instantanes/` et `etat/` lus par
 `git show` (lecture seule, jamais dans un hook). Sans dépôt, sans commit avant le lundi ou si git
 échoue : `debut` vaut None, donc aucune comparaison. Les catégories, chantiers et pauses du
@@ -46,6 +47,42 @@ def _json_valide(texte: str | None, nom_schema: str) -> dict | None:
     return objet
 
 
+class FuseauLocal(tzinfo):
+    """Fuseau local du poste, règle comprise : chaque instant prend son propre décalage.
+
+    Un décalage fixe pris au lundi (`naif.astimezone().tzinfo`) se tromperait d'une heure sur la
+    borne de fin d'une semaine de changement d'heure (W13, W43 en Europe). Ici, `utcoffset`
+    demande au système le décalage de l'heure locale `dt` (`astimezone()` sur l'heure naïve) et
+    `fromutc` convertit chaque instant UTC avec la règle du système.
+    """
+
+    def _decalage(self, naif: datetime) -> timedelta:
+        return naif.astimezone().utcoffset() or timedelta(0)
+
+    def utcoffset(self, dt: datetime | None) -> timedelta | None:
+        return None if dt is None else self._decalage(dt.replace(tzinfo=None))
+
+    def dst(self, dt: datetime | None) -> timedelta | None:
+        return None
+
+    def tzname(self, dt: datetime | None) -> str | None:
+        return None if dt is None else dt.replace(tzinfo=None).astimezone().tzname()
+
+    def _decalage_utc(self, naif_utc: datetime) -> timedelta:
+        return naif_utc.replace(tzinfo=UTC).astimezone().utcoffset() or timedelta(0)
+
+    def fromutc(self, dt: datetime) -> datetime:
+        naif = dt.replace(tzinfo=None)
+        decalage = self._decalage_utc(naif)  # décalage exact du système à cet instant
+        rendu = (naif + decalage).replace(tzinfo=self)
+        if rendu.utcoffset() != decalage:  # heure répétée au passage à l'heure d'hiver
+            rendu = rendu.replace(fold=1)
+        return rendu
+
+    def __repr__(self) -> str:
+        return "FuseauLocal()"
+
+
 def commit_avant(depot: Path, limite: datetime) -> str | None:
     """Dernier commit de `depot` strictement avant `limite` (aware), ou None."""
     if not depot.is_dir():
@@ -58,12 +95,14 @@ def commit_avant(depot: Path, limite: datetime) -> str | None:
 
 def etat_au_commit(depot: Path, sha: str) -> tuple[dict, dict] | None:
     """(instantanés `{pc: objet}`, états `{pc: {projet: [états]}}`) valides à ce commit."""
-    noms = _git(["ls-tree", "-r", "--name-only", sha, "--", "instantanes", "etat"], depot)
+    # `-z` : chemins bruts, sans les guillemets ni les octets en `\ooo` de `core.quotePath`
+    # (projet au nom accentué)
+    noms = _git(["ls-tree", "-r", "-z", "--name-only", sha, "--", "instantanes", "etat"], depot)
     if noms is None:
         return None
     instantanes: dict[str, dict] = {}
     etats: dict[str, dict[str, list]] = {}
-    for chemin in sorted(n for n in noms.splitlines() if n.endswith(".json")):
+    for chemin in sorted(n for n in noms.split("\0") if n.endswith(".json")):
         parties = chemin.split("/")
         if parties[0] == "instantanes" and len(parties) == 2:
             objet = _json_valide(_git(["show", f"{sha}:{chemin}"], depot), "instantane")
@@ -160,8 +199,7 @@ def _sessions_des(faits: Mapping[str, Mapping]) -> list[dict]:
 def lire_entree(semaine: str, maintenant: datetime | None = None) -> dict:
     """Entrée de `synthese_semaine` pour la semaine ISO `AAAA-Www` (voir `rapport.semaine`)."""
     maintenant = maintenant or datetime.now(UTC)
-    debut_naif = bornes_semaine(semaine, UTC)[0].replace(tzinfo=None)
-    fuseau: tzinfo = debut_naif.astimezone().tzinfo  # type: ignore[assignment]
+    fuseau = FuseauLocal()
     debut, fin = bornes_semaine(semaine, fuseau)
     faits, exclus = faits_courants(maintenant)
     depot = chemins.donnees()
