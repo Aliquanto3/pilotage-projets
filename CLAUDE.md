@@ -11,11 +11,14 @@ désigné par `depot_donnees` (`config.json`).
 - `pilotage/hooks/` : un point d'entrée par événement, stdlib seule.
 - `pilotage/scan/`, `sync/`, `serveur/` : outils, seuls à pouvoir importer PyYAML.
 - `pilotage/installation/` : fusion de `settings.json`.
+- `pilotage/rapport/` : synthèse de la semaine ; `semaine.py` pur, `lecture.py` seul à lire des
+  fichiers et à lancer `git` (lecture de `donnees/`).
 - `pilotage/web/` : HTML, JS, CSS statiques, charte locale (`charte.css`, `polices.css`), aucun CDN.
 - `lancer.py` : sous-commandes, importe toutes les couches sauf hooks.
 
 Graphe des imports (vérifié par `tests/test_imports.py`) : tout importe `noyau` ; tout sauf
-`noyau` importe `chemins` ; `sync → scan`, `serveur → sync` ; rien d'autre entre couches.
+`noyau` importe `chemins` ; `sync → scan`, `serveur → sync`, `rapport → scan` ; rien d'autre entre couches (rien
+n'importe `rapport`).
 
 ## Commandes
 - Lint : `uv run ruff check .`

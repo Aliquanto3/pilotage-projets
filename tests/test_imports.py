@@ -18,6 +18,7 @@ PILOTAGE_AUTORISE: dict[str, set[str]] = {
     "sync": {"noyau", "chemins", "scan", "sync"},
     "serveur": {"noyau", "chemins", "sync", "serveur"},
     "installation": {"noyau", "chemins", "installation"},
+    "rapport": {"noyau", "chemins", "scan", "rapport"},
     "lancer": {"noyau", "chemins", "scan", "sync", "serveur", "installation"},
 }
 # Paquets tiers permis (PyYAML : outils seulement).
@@ -34,7 +35,7 @@ STDLIB_NOYAU: set[str] = {
 STDLIB_INTERDITE: dict[str, set[str]] = {
     "chemins": {"subprocess", "socket", "http", "urllib", "asyncio", "multiprocessing"},
 }
-COUCHES_PAQUETS = {"noyau", "hooks", "scan", "sync", "serveur", "installation"}
+COUCHES_PAQUETS = {"noyau", "hooks", "scan", "sync", "serveur", "installation", "rapport"}
 
 
 def _couche_du_fichier(relatif: Path) -> str | None:
