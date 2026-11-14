@@ -14,6 +14,8 @@ from collections.abc import Callable
 from pilotage.noyau.schemas import (
     acquittement,
     alertes,
+    decision,
+    etat_depot,
     instantane,
     message,
     operation,
@@ -34,6 +36,8 @@ REGISTRE: dict[str, Validateur] = {
     "operation": operation.valider,
     "message": message.valider,
     "acquittement": acquittement.valider,
+    "etat_depot": etat_depot.valider,  # story 8.3
+    "decision": decision.valider,  # story 8.3
 }
 
 

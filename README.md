@@ -118,6 +118,10 @@ Ce qui part vers la branche `donnees` du dépôt privé :
   plus), que Claude (le modèle) rédige dans son dernier message pour dire où reprendre, et qui
   peut donc citer le contenu de la session ;
 - les messages que vous déposez vous-même depuis l'appli (2 048 octets au plus).
+- l'**état du dépôt** et les **décisions** que Claude déclare par marqueur à la fin d'une
+  étape (prochaine action, branche, blocages, pistes ; une décision et sa raison, datée par le
+  pilotage), 300 caractères par champ au plus. Ils sont écrits hors du dépôt du projet et
+  réinjectés au démarrage de la session suivante, sur n'importe quel PC (story 8.3).
 
 Ces textes passent par un filtre de motifs de secrets (`pilotage/noyau/texte.py`) : la racine
 `Documents\GitHub` est remplacée par `{{RACINE_GITHUB}}`, une note ou une attente qui contient un

@@ -1,7 +1,7 @@
 """Banc de latence des hooks (AD-1) : N appels par événement, p50 et p95 hors démarrage à froid.
 
 Usage : `uv run python outils/bench_hooks.py [--python CHEMIN] [--appels 50] [--messages 3]
-[--etats 20]`.
+[--etats 20] [--depots 8]`.
 Tout se passe sous une racine temporaire (`PILOTAGE_RACINE_LOCALE`) : aucun vrai dossier touché.
 Le hook est lancé comme Claude Code le lance : `<python> -I -S <hook>`, payload sur stdin.
 SessionStart et SessionEnd lancent pour de vrai la synchro détachée (story 3.6), vers un
@@ -10,6 +10,9 @@ SessionStart et SessionEnd lancent pour de vrai la synchro détachée (story 3.6
 acquittés à chaque SessionStart (acquittements effacés entre deux appels, hors mesure).
 `--etats N` (story 8.1, défaut 20) : N états de session avec note de reprise, d'autres PC, dans
 `donnees/etat/bench/` ; SessionStart en relit `MAX_ETATS_LUS` et injecte la plus récente.
+`--depots N` (story 8.3, défaut 8) : N états de dépôt d'autres PC (5 décisions chacun) dans
+`donnees/depots/bench/`, plus deux journaux de 200 lignes (jamais lus) ; SessionStart en ouvre 8
+et injecte le plus récent. Stop déclare un état et une décision par marqueur.
 PreCompact (story 8.2) : consigne de compaction en texte brut sur stdout, jamais de JSON.
 """
 
@@ -29,7 +32,9 @@ DEPOT = Path(__file__).resolve().parent.parent
 MESSAGE_AVEC_MARQUEURS = (
     "Fait.\n"
     '<!-- pilotage: action=attend-utilisateur | type=choix | quoi="Choisir la suite" -->\n'
-    "<!-- pilotage: reprise=\"Reprendre a l etape 3\" -->"
+    "<!-- pilotage: reprise=\"Reprendre a l etape 3\" -->\n"
+    '<!-- pilotage: prochaine="Relire la story" | branche=story/x | blocages="aucun" -->\n'
+    '<!-- pilotage: decision="Garder le banc" | pourquoi="Mesure stable" -->'
 )
 HOOKS = {
     "session_start": ("SessionStart", {"source": "startup"}),
@@ -49,9 +54,14 @@ BUDGET_P95_MS = 100.0
 DELAI_LANCEMENTS_S = 60.0
 MESSAGES_PAR_DEFAUT = 3
 ETATS_PAR_DEFAUT = 20
+DEPOTS_PAR_DEFAUT = 8
+LIGNES_JOURNAL_BANC = 200
 PCS_AUTRES = ("bench-a", "bench-b")
 NOTE_BANC = "Reprendre la story 8.1 : relire la spec puis lancer les tests ciblés. " * 4
-TEXTE_MESSAGE = "Message de banc : relis la story et reprends à l'étape 3. " * 30  # ~1,7 Ko
+# ~0,9 Ko : avec la règle, la note et l'état du dépôt (story 8.3), les trois messages tiennent
+# sous le plafond de 10 000 unités (~9 300) ; le banc exige qu'ils soient tous remis.
+TEXTE_MESSAGE = "Message de banc : relis la story et reprends à l'étape 3. " * 15
+PLAFOND_CONTEXTE = 10_000  # `hooks.cycle.BORNE_CONTEXTE`, unités UTF-16
 LANCEUR_FACTICE = (
     "import os, uuid\n"
     "dossier = os.path.join(os.path.dirname(os.getcwd()), 'lancements')\n"
@@ -108,6 +118,50 @@ def deposer_etats(racine: Path, nombre: int) -> None:
         os.utime(chemin, (futur + i, futur + i))
 
 
+def deposer_depots(racine: Path, nombre: int) -> None:
+    """`nombre` états de dépôt valides (schéma `etat_depot`) d'autres PC, 5 décisions chacun,
+    dans `donnees/depots/bench/`, et deux journaux de `LIGNES_JOURNAL_BANC` lignes (jamais lus
+    par SessionStart). `ecrit` récent (moins que la péremption), `mtime` dans le futur comme
+    `deposer_etats` : chaque SessionStart ouvre les mêmes fichiers."""
+    if nombre <= 0:
+        return
+    from datetime import UTC, datetime, timedelta
+
+    dossier = racine / "donnees" / "depots" / "bench"
+    dossier.mkdir(parents=True, exist_ok=True)
+    futur = time.time() + 86_400
+    session = str(uuid.UUID(int=1))
+    for i in range(nombre):
+        pc = f"bench-d{i}"
+        ecrit = (datetime.now(UTC) - timedelta(minutes=nombre - i)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        # Textes sans blanc au bord : le schéma `decision` les refuse.
+        decisions = [
+            {"date": ecrit[:10], "ecrit": ecrit,
+             "decision": (f"Décision {j} du banc " * 6).strip(),
+             "pourquoi": ("Parce que le banc le veut " * 4).strip(), "session": session}
+            for j in range(5)
+        ]
+        prochaine = ("Relire la story puis lancer les tests ciblés " * 5).strip()
+        objet = {
+            "schema": 1, "projet": "bench", "pc": pc, "session": session, "ecrit": ecrit,
+            "etat": {"prochaine": prochaine,
+                     "branche": "story/bench", "blocages": "aucun", "explore": "docs/a.md",
+                     "a_explorer": "module Y"},
+            "decisions": decisions,
+        }
+        chemin = dossier / f"{pc}.json"
+        chemin.write_text(json.dumps(objet, ensure_ascii=False, indent=2) + "\n",
+                          encoding="utf-8")
+        os.utime(chemin, (futur + i, futur + i))
+        if i < 2:
+            ligne = json.dumps(decisions[0], ensure_ascii=False) + "\n"
+            (dossier / f"{pc}.decisions.jsonl").write_text(
+                ligne * LIGNES_JOURNAL_BANC, encoding="utf-8"
+            )
+
+
 def deposer_operations_autres(racine: Path, nombre: int) -> None:
     """`nombre` opérations `deposer_message` d'un autre projet dans `attente/operations/` (le
     hook doit les écarter sans les parser ni les journaliser)."""
@@ -122,7 +176,9 @@ def deposer_operations_autres(racine: Path, nombre: int) -> None:
         )
 
 
-def preparer(racine: Path, messages: int = 0, operations: int = 0, etats: int = 0) -> Path:
+def preparer(
+    racine: Path, messages: int = 0, operations: int = 0, etats: int = 0, depots: int = 0
+) -> Path:
     """Dépôt factice `bench` sous `<racine>/github`, table des dossiers, `messages` messages en
     attente et `etats` états d'autres PC avec note ; rend son dossier."""
     dossier = racine / "github" / "bench"
@@ -137,6 +193,7 @@ def preparer(racine: Path, messages: int = 0, operations: int = 0, etats: int = 
     deposer_messages(racine, messages)
     deposer_operations_autres(racine, operations)
     deposer_etats(racine, etats)
+    deposer_depots(racine, depots)
     return dossier
 
 
@@ -160,7 +217,7 @@ def attendre_lancements(racine: Path, attendus: int) -> int:
 
 def mesurer(
     python: str, hook: str, sessions: list[str], racine: Path, dossier: Path, messages: int = 0,
-    etats: int = 0,
+    etats: int = 0, depots: int = 0,
 ) -> list[float]:
     """Durées (ms) d'un lancement du hook par session (`session_end` clôt celles du début)."""
     evenement, champs = HOOKS[hook]
@@ -172,6 +229,7 @@ def mesurer(
     durees: list[float] = []
     remis = ids_messages(min(messages, 3)) if hook == "session_start" else []
     avec_note = hook == "session_start" and etats > 0
+    avec_depot = hook == "session_start" and depots > 0
     boite = racine / "attente" / "boite"
     for session in sessions:
         shutil.rmtree(boite, ignore_errors=True)  # hors mesure : les messages restent en attente
@@ -199,10 +257,18 @@ def mesurer(
         # préambule.
         debuts = resultat.stdout.count(rb"\n<<<PILOTAGE-MESSAGE-DEBUT id=")
         note = "## Dernière note de reprise".encode() in resultat.stdout
-        if acquittes != remis or debuts != len(remis) + avec_note:
+        # Règle, note, état du dépôt (8.3) et les trois messages du banc tiennent sous le
+        # plafond (voir `TEXTE_MESSAGE`) : chacun doit être remis et acquitté.
+        if acquittes != remis or debuts != len(remis) + avec_note + avec_depot:
             raise RuntimeError(f"{hook} : messages non remis ou non acquittés")
+        if hook == "session_start":
+            contexte = json.loads(resultat.stdout)["hookSpecificOutput"]["additionalContext"]
+            if len(contexte.encode("utf-16-le")) // 2 > PLAFOND_CONTEXTE:
+                raise RuntimeError(f"{hook} : plafond de {PLAFOND_CONTEXTE} unités dépassé")
         if note != avec_note:
             raise RuntimeError(f"{hook} : note de reprise absente ou inattendue")
+        if ("## État du dépôt".encode() in resultat.stdout) != avec_depot:
+            raise RuntimeError(f"{hook} : état du dépôt absent ou inattendu")
     return durees
 
 
@@ -224,6 +290,10 @@ def main(argv: list[str] | None = None) -> int:
         "--etats", type=int, default=ETATS_PAR_DEFAUT,
         help="états d'autres PC avec note de reprise (SessionStart injecte la plus récente)",
     )
+    parser.add_argument(
+        "--depots", type=int, default=DEPOTS_PAR_DEFAUT,
+        help="états de dépôt d'autres PC (SessionStart injecte le plus récent)",
+    )
     args = parser.parse_args(argv)
     if args.appels < 2:
         parser.error("--appels : au moins 2 (le premier appel est écarté)")
@@ -231,17 +301,22 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--messages : 0 ou plus")
     if not 0 <= args.etats <= 24 * 28:
         parser.error(f"--etats : de 0 à {24 * 28}")
+    if not 0 <= args.depots <= 100:
+        parser.error("--depots : de 0 à 100")
     if not 0 <= args.operations_autres < 3600:
         parser.error("--operations-autres : de 0 à 3599")
     depasse = False
     temporaires = tempfile.TemporaryDirectory(prefix="bench-hooks-", ignore_cleanup_errors=True)
     with temporaires as temporaire:
         racine = Path(temporaire)
-        dossier = preparer(racine, args.messages, args.operations_autres, args.etats)
+        dossier = preparer(
+            racine, args.messages, args.operations_autres, args.etats, args.depots
+        )
         sessions = [str(uuid.uuid4()) for _ in range(args.appels)]
         for hook in HOOKS:
             chaud = mesurer(
-                args.python, hook, sessions, racine, dossier, args.messages, args.etats
+                args.python, hook, sessions, racine, dossier, args.messages, args.etats,
+                args.depots,
             )[1:]
             p50, p95 = centile(chaud, 50), centile(chaud, 95)
             depasse |= p95 > BUDGET_P95_MS

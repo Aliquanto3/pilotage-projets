@@ -9,12 +9,12 @@ ATTENTE = '<!-- pilotage: action=attend-utilisateur | type=choix | quoi="Quelle 
 
 
 def test_attente_complete():
-    assert lire(ATTENTE) == (("choix", "Quelle option ?"), None)
+    assert lire(ATTENTE)[:2] == (("choix", "Quelle option ?"), None)
 
 
 def test_attente_en_fin_de_message_apres_du_texte():
     message = f"Fin du travail.\n\n{ATTENTE}\n\n  \r\n"
-    assert lire(message) == (("choix", "Quelle option ?"), None)
+    assert lire(message)[:2] == (("choix", "Quelle option ?"), None)
 
 
 def test_marqueur_en_fin_de_ligne_de_texte():
@@ -39,7 +39,7 @@ def test_seul_le_bloc_final_compte():
         '<!-- pilotage: reprise="ancienne" -->\nTexte.\n'
         f'{ATTENTE}\n\n<!-- pilotage: reprise="r" -->'
     )
-    assert lire(message) == (("choix", "Quelle option ?"), "r")
+    assert lire(message)[:2] == (("choix", "Quelle option ?"), "r")
 
 
 @pytest.mark.parametrize("genre", ["choix", "test", "donnees", "acces"])
@@ -69,19 +69,19 @@ def test_quoi_peut_contenir_barre_et_signe_egal():
 
 
 def test_reprise():
-    assert lire('<!-- pilotage: reprise="Reprendre à l\'étape 3" -->') == (
+    assert lire('<!-- pilotage: reprise="Reprendre à l\'étape 3" -->')[:2] == (
         None, "Reprendre à l'étape 3"
     )
 
 
 def test_attente_et_reprise_dans_un_meme_marqueur():
     message = '<!-- pilotage: action=attend-utilisateur | quoi="q" | reprise="r" -->'
-    assert lire(message) == ((None, "q"), "r")
+    assert lire(message)[:2] == ((None, "q"), "r")
 
 
 def test_deux_genres_dans_deux_marqueurs():
     message = f'{ATTENTE}\n<!-- pilotage: reprise="r" -->'
-    assert lire(message) == (("choix", "Quelle option ?"), "r")
+    assert lire(message)[:2] == (("choix", "Quelle option ?"), "r")
 
 
 # --- Cas mal formés de la story ---------------------------------------------------------------
@@ -220,7 +220,7 @@ def test_action_attente_renommee_et_alias_d_entree():
 def test_ancienne_et_nouvelle_action_lues_pareil(action):
     message = (f'Fin.\n<!-- pilotage: action={action} | type=test | quoi="Lancer X" '
                '| reprise="r" -->')
-    assert lire(message) == (("test", "Lancer X"), "r")
+    assert lire(message)[:2] == (("test", "Lancer X"), "r")
 
 
 def test_ancienne_action_puis_nouvelle_la_derniere_l_emporte():
@@ -236,3 +236,64 @@ def test_ancienne_action_puis_nouvelle_la_derniere_l_emporte():
 )
 def test_autre_action_proche_ignoree(action):
     assert lire(f'<!-- pilotage: action={action} | quoi="q" -->') == AUCUN
+
+
+# --- Story 8.3 : état du dépôt et décisions ---------------------------------------------------
+
+ETAT = ('<!-- pilotage: prochaine="Écrire les tests" | branche=feat/x | blocages="aucun" '
+        '| explore="docs/a.md" | a_explorer="module Y" | inconnu=z -->')
+
+
+def test_etat_complet_dans_l_ordre():
+    trouves = lire(f"Fait.\n{ETAT}")
+    assert trouves.etat == {"prochaine": "Écrire les tests", "branche": "feat/x",
+                            "blocages": "aucun", "explore": "docs/a.md", "a_explorer": "module Y"}
+    assert list(trouves.etat) == list(marqueur.CHAMPS_ETAT)
+    assert (trouves.attente, trouves.reprise, trouves.decisions) == (None, None, ())
+
+
+def test_etat_sans_prochaine_ignore():
+    assert lire('<!-- pilotage: branche=b | blocages="x" -->') == AUCUN
+    assert lire('<!-- pilotage: prochaine="  " | branche=b -->') == AUCUN
+
+
+def test_etat_facultatifs_vides_omis():
+    assert lire('<!-- pilotage: prochaine="P" | blocages="" -->').etat == {"prochaine": "P"}
+
+
+def test_etat_dernier_gagne_et_clos():
+    message = '<!-- pilotage: prochaine="A" -->\n<!-- pilotage: prochaine="B" -->'
+    assert lire(message).etat == {"prochaine": "B"}
+    assert lire('<!-- pilotage: prochaine="A" -->\n<!-- pilotage: etat=clos -->').etat == (
+        marqueur.ETAT_CLOS
+    )
+    assert lire('<!-- pilotage: etat=clos -->\n<!-- pilotage: prochaine="B" -->').etat == {
+        "prochaine": "B"
+    }
+    assert lire("<!-- pilotage: etat=autre -->") == AUCUN
+
+
+def test_decisions_toutes_dans_l_ordre_trois_au_plus():
+    message = "\n".join(
+        [f'<!-- pilotage: decision="D{i}" | pourquoi="P{i}" -->' for i in range(1, 3)]
+        + ['<!-- pilotage: decision="D3" | pourquoi="" -->', '<!-- pilotage: decision="D4" -->']
+    )
+    assert lire(message).decisions == (("D1", "P1"), ("D2", "P2"), ("D3", None))
+    assert marqueur.MAX_DECISIONS == 3
+    assert lire('<!-- pilotage: pourquoi="seul" -->') == AUCUN
+
+
+def test_quatre_genres_melanges():
+    message = (
+        "Fin.\n"
+        '<!-- pilotage: action=attend-utilisateur | type=choix | quoi="Q" -->\n'
+        '<!-- pilotage: reprise="R" | prochaine="P" -->\n'
+        '<!-- pilotage: decision="D" -->'
+    )
+    assert lire(message) == marqueur.Marqueurs(
+        ("choix", "Q"), "R", {"prochaine": "P"}, (("D", None),)
+    )
+
+
+def test_etat_suivi_de_texte_ignore():
+    assert lire(f"{ETAT}\nExemple ci-dessus.") == AUCUN

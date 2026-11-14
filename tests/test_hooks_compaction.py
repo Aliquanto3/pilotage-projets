@@ -135,3 +135,8 @@ def test_erreur_a_l_emission_journalisee_sans_contenu(racine):  # noqa: F811
         f.read_text(encoding="utf-8") for f in (racine / "attente" / "journal").iterdir()
     )
     assert "tube" not in journal and "décisions" not in journal and session not in journal
+
+
+def test_consigne_mentionne_l_etat_du_depot():
+    assert "état du dépôt, messages) : ils reviennent" in compaction.CONSIGNE
+    assert "et l'état du dépôt par son marqueur s'il a changé" in compaction.CONSIGNE

@@ -105,3 +105,57 @@ def test_etats_du_banc_valides_et_plus_recents(tmp_path):
         assert (objet["pc"], f"{objet['session']}.json") == (fichier.parent.name, fichier.name)
         assert objet["reprise"] and len(objet["reprise"]) <= 300
         assert os.stat(fichier).st_mtime > time.time()  # restent les plus récents
+
+
+# --- Story 8.3 : états de dépôt et marqueurs d'état et de décision ----------------------------
+
+
+def test_etats_de_depot_du_banc_valides(tmp_path):
+    import json
+
+    from pilotage.noyau import schemas
+
+    bench.deposer_depots(tmp_path, 8)
+    dossier = tmp_path / "donnees" / "depots" / "bench"
+    etats = sorted(dossier.glob("*.json"))
+    assert [f.stem for f in etats] == [f"bench-d{i}" for i in range(8)]
+    for fichier in etats:
+        schemas.valider("etat_depot", json.loads(fichier.read_text(encoding="utf-8")))
+    journaux = sorted(dossier.glob("*.decisions.jsonl"))
+    assert len(journaux) == 2
+    for journal in journaux:
+        lignes = journal.read_text(encoding="utf-8").splitlines()
+        assert len(lignes) == bench.LIGNES_JOURNAL_BANC == 200
+        schemas.valider("decision", json.loads(lignes[0]))
+
+
+def test_marqueurs_d_etat_et_de_decision_du_banc_lus():
+    from pilotage.noyau import marqueur
+
+    trouves = marqueur.lire(bench.MESSAGE_AVEC_MARQUEURS)
+    assert trouves.attente and trouves.reprise
+    assert trouves.etat["prochaine"] == "Relire la story"
+    assert trouves.decisions == (("Garder le banc", "Mesure stable"),)
+
+
+def test_scenario_huit_etats_de_depot(capsys, monkeypatch):
+    """SessionStart ouvre les 8 états de dépôt, injecte la note, le bloc et les trois messages,
+    tous acquittés (le banc lève sinon) ; Stop écrit l'état et le journal sans rien journaliser.
+    Budget levé : seul le contrôle des sorties est jugé ici, pas la latence du poste."""
+    monkeypatch.setattr(bench, "BUDGET_P95_MS", float("inf"))
+    code = bench.main(["--appels", "2", "--etats", "20", "--messages", "3", "--depots", "8"])
+    sortie = capsys.readouterr().out
+    assert code == 0
+    assert "stop : p50 " in sortie
+    assert "erreurs journalisées" not in sortie
+
+
+def test_depots_hors_bornes_refuses():
+    with pytest.raises(SystemExit):
+        bench.main(["--appels", "2", "--depots", "-1"])
+
+
+def test_plafond_du_banc_celui_des_hooks():
+    from pilotage.hooks import cycle
+
+    assert bench.PLAFOND_CONTEXTE == cycle.BORNE_CONTEXTE

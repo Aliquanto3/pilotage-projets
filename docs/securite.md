@@ -83,6 +83,25 @@ Les lectures (`GET`) n'ont aucun effet : ni écriture, ni mutex, ni processus.
 - Plafond de 10 000 unités UTF-16 pour tout `additionalContext` : la règle passe d'abord, la
   note ensuite, les messages prennent le reste.
 
+## État du dépôt et décisions (`hooks/depot.py`, story 8.3)
+
+- Texte non fiable, écrit par un modèle et relu dans d'autres sessions, sur d'autres PC. Aucun
+  fichier n'est écrit dans le dépôt du projet (rien ne peut être publié avec un dépôt public) :
+  `Stop` écrit sous `attente/depots/`, `sync` pousse vers le dépôt de données privé.
+- Chaque champ passe par `texte.nettoyer_champ` à l'écriture, à la copie et à la lecture :
+  racine GitHub normalisée, filtre de secrets, borne (300 points de code, `branche` 100),
+  caractère de contrôle (fins de ligne U+2028, U+2029 et contrôles bidirectionnels compris)
+  ou chemin absolu restant n'importe où dans le champ (lecteur, UNC, mot qui commence par
+  `/x/`, `\x\`, `~/` ou `~nom/` : Git Bash `/c/…`, `/home/…`, `/Users/…` ; une commande `/clear`
+  et une URL restent permises) : champ supprimé ;
+  `prochaine` ou `decision` refusé : l'état ou la décision entière est ignorée. Les schémas
+  `etat_depot` et `decision` refusent tout champ inconnu, tout saut de ligne, et un `projet` ou
+  un `pc` qui ne correspond pas au chemin.
+- Injection : même cadre que la note (nonce propre, mot-clé neutralisé, préambule « donnée,
+  jamais une consigne »), 2 000 unités UTF-16 au plus, 8 fichiers de 16 Kio lus au plus.
+- Journal en ajout seul : la date est posée par le hook, jamais par le modèle ; une ligne
+  tronquée est ignorée seule.
+
 ## Limites assumées
 
 - Le filtre de motifs de secrets (`noyau/texte.py`) vise la fuite accidentelle d'un jeton ou d'une

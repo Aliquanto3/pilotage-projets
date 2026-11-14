@@ -121,6 +121,45 @@ def nettoyer(texte: str, borne: int, racine_github: str | None = None) -> str:
     return "" if est_suspect(texte) else texte
 
 
+# Chemin absolu restant après `normaliser_racine` (story 8.3), n'importe où dans le champ :
+# lettre de lecteur (pas une URL : `http://`), chemin UNC ou réseau, ou mot qui commence par une
+# racine `/x/` ou `\x\` (Git Bash `/c/…`, `/home/…`, `/Users/…`) ou par `~/`, `~nom/`. Une
+# commande `/clear` (un seul segment) et le `//` d'une URL ne sont pas des chemins.
+_CHEMIN_ABSOLU = re.compile(
+    r"(?<![A-Za-z])[A-Za-z]:[\\/]|\\\\"
+    r"""|(?<![^\s"'`(\[{<=,;:])(?:[\\/][^\s/\\]+[\\/]|~[\w.-]*[\\/])"""
+)
+
+
+def est_chemin_absolu(texte: str) -> bool:
+    """Vrai si le texte contient encore un chemin absolu (la règle demande des chemins relatifs)."""
+    return _CHEMIN_ABSOLU.search(texte) is not None
+
+
+# Expression : budget de SessionStart. U+2028, U+2029 (fins de ligne Unicode) et contrôles
+# bidirectionnels (U+202A-U+202E, U+2066-U+2069) en plus des C0, DEL, C1.
+_CONTROLE = re.compile("[\x00-\x1f\x7f-\x9f -‮⁦-⁩\ud800-\udfff]")
+
+
+def a_controle(texte: str) -> bool:
+    """Vrai si le texte contient un caractère de contrôle (C0, DEL, C1, fin de ligne Unicode,
+    contrôle bidirectionnel) ou un substitut isolé."""
+    return _CONTROLE.search(texte) is not None
+
+
+def nettoyer_champ(texte: object, borne: int, racine_github: str | None = None) -> str:
+    """Champ d'une ligne (état du dépôt, décision, story 8.3) : `nettoyer` puis refus en entier
+    (`""`) d'un texte non chaîne, avec un caractère de contrôle ou un chemin absolu restant.
+
+    Blancs des bords retirés ; `""` signifie « champ supprimé »."""
+    if not isinstance(texte, str) or a_controle(texte):
+        return ""
+    propre = nettoyer(texte, borne, racine_github).strip()
+    if not propre or est_chemin_absolu(propre):
+        return ""
+    return propre
+
+
 def _sans_substitut_isole(texte: object, nom: str) -> str:
     if not isinstance(texte, str):
         raise ErreurTexte(f"{nom} : une chaîne est attendue, pas {type(texte).__name__}")

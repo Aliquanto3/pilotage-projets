@@ -11,13 +11,17 @@ Grammaire (une ligne, entre `<!--` et `-->`, champs séparés par `|`) :
   par les sessions ouvertes avant la story 7.2) et `quoi` non vide ; `type` n'est gardé que s'il
   vaut `choix`, `test`, `donnees` ou `acces`, sinon il est omis ;
 - marqueur de reprise : `reprise` non vide ;
+- marqueur d'état du dépôt (story 8.3) : `prochaine` non vide, plus `branche`, `blocages`,
+  `explore`, `a_explorer` facultatifs (vides : omis) ; `etat=clos` vide l'état ;
+- marqueur de décision (story 8.3) : `decision` non vide, `pourquoi` facultatif ;
 - un marqueur mal formé (guillemet non fermé, séparateur manquant, champ sans `=`, corps de plus
   de 2000 caractères, ou qui en contient un autre ouvert avant d'être fermé) est ignoré en entier ;
   un même marqueur peut porter les deux genres ;
 - seuls comptent les marqueurs du bloc final : les dernières lignes non vides du message qui se
   terminent chacune par un marqueur (les lignes vides entre elles sont sautées) ; un marqueur
   suivi d'une ligne de texte (exemple cité, bloc de code) est ignoré ;
-- dans ce bloc, deux marqueurs valides du même genre : le dernier l'emporte.
+- dans ce bloc, deux marqueurs valides du même genre : le dernier l'emporte, sauf les décisions,
+  toutes gardées dans l'ordre, `MAX_DECISIONS` au plus (les premières).
 
 Les textes rendus sont bruts : `texte.nettoyer` s'applique à l'écriture, pas ici.
 """
@@ -36,8 +40,17 @@ _MARQUEUR = re.compile(rf"<!--[ \t]*pilotage:((?:(?!<!--)[^\n]){{0,{BORNE_CORPS}
 _CHAMP = re.compile(r'[ \t]*([a-z_]+)=(?:"([^"]*)"|([^\s|"]+))[ \t]*(?:\||$)')
 _SUBSTITUT = re.compile("[\ud800-\udfff]")
 
-# `attente` : `(type ou None, quoi)` ou `None` ; `reprise` : texte ou `None`.
-Marqueurs = namedtuple("Marqueurs", ["attente", "reprise"])
+CHAMPS_ETAT = ("prochaine", "branche", "blocages", "explore", "a_explorer")
+ETAT_CLOS = "clos"  # `etat=clos` : l'état du dépôt de ce PC est supprimé
+MAX_DECISIONS = 3  # par tour
+
+# `attente` : `(type ou None, quoi)` ou `None` ; `reprise` : texte ou `None` ; `etat` : dict des
+# champs présents de `CHAMPS_ETAT` (dans cet ordre), `ETAT_CLOS` ou `None` ; `decisions` : tuple
+# de `(decision, pourquoi ou None)`. Les deux derniers ont une valeur par défaut : les appels à
+# deux champs restent valides.
+Marqueurs = namedtuple(
+    "Marqueurs", ["attente", "reprise", "etat", "decisions"], defaults=(None, ())
+)
 AUCUN = Marqueurs(None, None)
 
 
@@ -78,6 +91,8 @@ def lire(message: object) -> Marqueurs:
         return AUCUN
     attente = None
     reprise = None
+    etat = None
+    decisions: list[tuple[str, str | None]] = []
     try:
         for trouve in _bloc_final(message):
             if _SUBSTITUT.search(trouve.group(1)):
@@ -92,6 +107,18 @@ def lire(message: object) -> Marqueurs:
             note = champs.get("reprise", "").strip()
             if note:
                 reprise = note
+            prochaine = champs.get("prochaine", "").strip()
+            if prochaine:
+                etat = {"prochaine": prochaine}
+                for cle in CHAMPS_ETAT[1:]:
+                    valeur = champs.get(cle, "").strip()
+                    if valeur:
+                        etat[cle] = valeur
+            elif champs.get("etat") == ETAT_CLOS:
+                etat = ETAT_CLOS
+            decision = champs.get("decision", "").strip()
+            if decision and len(decisions) < MAX_DECISIONS:
+                decisions.append((decision, champs.get("pourquoi", "").strip() or None))
     except Exception:  # noqa: BLE001 - garde-fou : une lecture ne doit jamais lever
         return AUCUN
-    return Marqueurs(attente, reprise)
+    return Marqueurs(attente, reprise, etat, tuple(decisions))

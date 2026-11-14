@@ -676,3 +676,98 @@ def test_note_omise_si_regle_et_note_depassent(racine, capsysbinary, monkeypatch
         assert "\nNote\n" in json.loads(sortie)["hookSpecificOutput"]["additionalContext"]
     else:
         assert sortie == sortie_regle()
+
+
+# --- Story 8.3 : état du dépôt, entre la note et les messages -----------------------------
+
+
+def _etat_depot(racine: Path, pc: str, ou: str, ecrit: str, prochaine: str,
+                decisions: list[dict] | None = None) -> None:
+    dossier = racine / ou / "depots" / PROJET_NOTE
+    dossier.mkdir(parents=True, exist_ok=True)
+    objet = {"schema": 1, "projet": PROJET_NOTE, "pc": pc, "session": S_HIER, "ecrit": ecrit,
+             "etat": {"prochaine": prochaine}, "decisions": decisions or []}
+    (dossier / f"{pc}.json").write_text(json.dumps(objet, ensure_ascii=False), encoding="utf-8")
+
+
+def _iso_recent(heures: int) -> str:
+    from datetime import UTC, datetime, timedelta
+
+    return (datetime.now(UTC) - timedelta(hours=heures)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def test_ordre_regle_note_etat_messages(racine):
+    from pilotage.noyau import cadrage
+
+    _etat_note(racine, S_MATIN, "N2 de ce matin", "2026-11-14T07:30:00Z", pc=AUTRE_PC,
+               ou="donnees")
+    _etat_depot(racine, PC, "attente", _iso_recent(5), "Ancien état d'ici")
+    recent = _iso_recent(1)
+    decisions = [
+        {"date": recent[:10], "ecrit": recent, "decision": f"D{i}", "session": S_HIER}
+        for i in range(1, 8)
+    ][-5:]  # les 7 décisions de la session : `Stop` n'en garde que les 5 dernières
+    _etat_depot(racine, AUTRE_PC, "donnees", recent, "État de l'autre PC", decisions)
+    _message_boite(racine, MSG1, "Fais la story 8.3.")
+    contexte = _contexte(_lancer(START, _payload("SessionStart-startup", racine)))
+    (id_note, nonce_note), (id_etat, nonce_etat), (id_msg, nonce_msg) = _blocs(contexte)
+    assert len({nonce_note, nonce_etat, nonce_msg}) == 3
+    assert id_msg == MSG1 and id_etat not in (id_note, MSG1)
+    note, etat, messages = contexte.split("\n\n## ")[1:]
+    assert note.startswith("Dernière note de reprise")
+    assert etat.startswith("État du dépôt (pilotage-projets)")
+    assert messages.startswith("Messages ")
+    bloc = "## " + etat.rstrip("\n")
+    assert bloc == cadrage.cadrer_etat_depot(
+        {"prochaine": "État de l'autre PC"}, decisions, nonce_etat, pc=AUTRE_PC, ecrit=recent,
+        identifiant=id_etat,
+    )
+    assert f"Déclaré sur `{AUTRE_PC}`" in bloc and "Ancien état d'ici" not in contexte
+    assert [f"· D{i}" in bloc for i in range(1, 8)] == [False, False] + [True] * 5
+    assert cadrage.unites_utf16(bloc) <= 2000
+    assert cadrage.unites_utf16(contexte) <= 10_000
+    assert _acquitte(racine, MSG1)
+    assert _journal(racine) == []
+
+
+def test_etat_injecte_apres_compaction(racine):
+    _etat_depot(racine, PC, "attente", _iso_recent(1), "Reprendre après compaction")
+    payload = _payload("SessionStart-compact-a-confirmer", racine)
+    contexte = _contexte(_lancer(START, payload))
+    assert contexte.startswith(_regle_texte().rstrip("\n") + "\n\n## État du dépôt")
+    assert "\nProchaine action : Reprendre après compaction\n" in contexte
+
+
+def test_etat_invalide_sortie_d_avant(racine):
+    dossier = racine / "donnees" / "depots" / PROJET_NOTE
+    dossier.mkdir(parents=True)
+    (dossier / f"{AUTRE_PC}.json").write_bytes(b"{pas du json")
+    (dossier / "PC_X.json").write_text("{}", encoding="utf-8")
+    resultat = _lancer(START, _payload("SessionStart-startup", racine))
+    assert resultat.stdout == sortie_regle()
+    assert _journal(racine) == []
+
+
+def test_sous_agent_ni_lu_ni_emis_avec_un_etat(racine):
+    _etat_depot(racine, PC, "attente", _iso_recent(1), "P")
+    resultat = _lancer(START, _payload("SessionStart-startup", racine, agent_id="a1"))
+    assert (resultat.returncode, resultat.stdout, resultat.stderr) == (0, b"", b"")
+
+
+@pytest.mark.parametrize("marge", [0, 1])
+def test_etat_omis_s_il_ne_tient_pas_apres_regle_et_note(racine, capsysbinary, monkeypatch,
+                                                          marge):
+    from pilotage.hooks import cycle
+    from pilotage.noyau import cadrage
+
+    _etat_note(racine, S_HIER, "Note", "2026-11-13T17:00:00Z")
+    _etat_depot(racine, PC, "attente", _iso_recent(1), "Etat")
+    monkeypatch.setattr(_commun, "declencher_sync", lambda _evenement: None)
+    payload = _payload("SessionStart-startup", racine)
+    cycle.demarrer(payload)
+    complet = json.loads(capsysbinary.readouterr().out)["hookSpecificOutput"]["additionalContext"]
+    monkeypatch.setattr(cycle, "BORNE_CONTEXTE", cadrage.unites_utf16(complet) - marge)
+    cycle.demarrer(payload)
+    contexte = json.loads(capsysbinary.readouterr().out)["hookSpecificOutput"]["additionalContext"]
+    assert "\nNote\n" in contexte
+    assert ("Prochaine action : Etat" in contexte) is (marge == 0)
