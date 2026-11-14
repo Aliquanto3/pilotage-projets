@@ -103,13 +103,13 @@ development_status:
 
   epic-8: in-progress
   8-1-dernière-note-de-reprise-réinjectée-au-démarrage: done
-  8-2-hook-precompact-et-consigne-de-compaction: backlog
-  8-3-fichier-d-état-par-dépôt-et-journal-de-décisions: backlog
+  8-2-hook-precompact-et-consigne-de-compaction: done
+  8-3-fichier-d-état-par-dépôt-et-journal-de-décisions: review
   epic-8-retrospective: optional
 
-  epic-9: backlog
-  9-1-synthèse-de-la-semaine-calculée-sans-modèle: backlog
-  9-2-page-html-du-rapport-et-commande-lancer-py-rapport: backlog
-  9-3-rapport-hebdomadaire-généré-par-sync: backlog
+  epic-9: in-progress
+  9-1-synthèse-de-la-semaine-calculée-sans-modèle: done
+  9-2-page-html-du-rapport-et-commande-lancer-py-rapport: review
+  9-3-rapport-hebdomadaire-généré-par-sync: review
   9-4-rapport-de-la-semaine-dans-l-appli-v0-7-0: backlog
   epic-9-retrospective: optional
