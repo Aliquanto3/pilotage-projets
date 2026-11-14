@@ -86,7 +86,10 @@ def _lire_precedent(chemin, projet: str, pc: str) -> dict | None:
 
 
 def _ajouter_au_journal(chemin, lignes: list[dict]) -> None:
-    """Ajout seul ; une dernière ligne tronquée (écriture interrompue) est d'abord fermée."""
+    """Ajout seul ; une dernière ligne tronquée (écriture interrompue) est d'abord fermée.
+
+    Sans `fsync` (~7 ms sous Windows, budget de `Stop`) : une coupure de courant peut perdre la
+    ligne, les cinq dernières décisions restent dans `<pc>.json`, écrit par `ecrire_atomique`."""
     contenu = "".join(json.dumps(ligne, ensure_ascii=False) + "\n" for ligne in lignes)
     with open(chemin, "a+b") as fichier:
         fichier.seek(0, os.SEEK_END)
@@ -95,8 +98,6 @@ def _ajouter_au_journal(chemin, lignes: list[dict]) -> None:
             if fichier.read(1) != b"\n":
                 contenu = "\n" + contenu
         fichier.write(contenu.encode("utf-8"))
-        fichier.flush()
-        os.fsync(fichier.fileno())
 
 
 def _ecrire(projet: str, pc: str, session: str, trouves, racine: str) -> None:

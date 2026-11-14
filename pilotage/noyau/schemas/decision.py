@@ -10,7 +10,7 @@ est refusé. Les cinq dernières décisions du PC sont aussi rangées dans le fi
 import re
 from datetime import datetime
 
-from pilotage.noyau import ids
+from pilotage.noyau import ids, texte
 from pilotage.noyau.schemas.erreurs import ErreurValidation
 
 BORNE_DECISION = 300  # points de code, `decision` comme `pourquoi`
@@ -32,15 +32,13 @@ def horodatage(valeur: object, nom: str, schema: str) -> str:
 
 def champ_texte(valeur: object, borne: int, nom: str, schema: str) -> None:
     """Texte d'une ligne : chaîne non vide sans blanc au bord, `borne` points de code au plus,
-    sans caractère de contrôle (`\n`, `\r` compris) ni substitut isolé."""
+    sans caractère de contrôle (`\\n`, `\\r` compris) ni substitut isolé."""
     if (
         not isinstance(valeur, str)
         or not valeur
         or valeur != valeur.strip()
         or len(valeur) > borne
-        or any(
-            ord(c) < 0x20 or 0x7F <= ord(c) <= 0x9F or 0xD800 <= ord(c) <= 0xDFFF for c in valeur
-        )
+        or texte.a_controle(valeur)
     ):
         raise ErreurValidation(
             f"{schema} : {nom} : texte d'une ligne de 1 à {borne} points de code attendu"

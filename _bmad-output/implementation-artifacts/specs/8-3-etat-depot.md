@@ -219,3 +219,16 @@ un fichier, il reçoit l'état au démarrage.
   tient plus sous 10 000 unités ; le banc vérifie désormais que les messages remis sont les plus
   anciens (au moins un) et non plus les trois. En usage réel, des messages longs peuvent
   attendre la session suivante (priorité règle, note, état, messages).
+- Journal ajouté sans `fsync` (~7 ms sous Windows) : une coupure de courant peut perdre la
+  dernière ligne ; les 5 dernières décisions restent dans `<pc>.json` (écriture atomique).
+
+### Banc (`--appels 200`, poste chargé, même passage)
+| Hook | main f61ddb2 p95 | branche p95 |
+|---|---|---|
+| `session_start` (20 états, 3 messages, 8 états de dépôt) | 102,2 ms | 111,9 ms |
+| `stop` (attente, reprise, état, décision) | 76,9 ms | 95,7 ms |
+| `prompt` (témoin, inchangé) | 75,6 ms | 75,0 ms |
+
+Écart : `session_start` +10 ms, `stop` +19 ms (verrou, écriture atomique, ajout au journal).
+Budget de 100 ms dépassé par `session_start` (la ligne de base l'est déjà sur ce passage) :
+décision de l'utilisateur, le banc n'est pas affaibli.

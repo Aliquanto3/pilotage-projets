@@ -131,11 +131,12 @@ def est_chemin_absolu(texte: str) -> bool:
     return _CHEMIN_ABSOLU.search(texte) is not None
 
 
+_CONTROLE = re.compile("[\x00-\x1f\x7f-\x9f\ud800-\udfff]")  # expression : budget de SessionStart
+
+
 def a_controle(texte: str) -> bool:
     """Vrai si le texte contient un caractère de contrôle (C0, DEL, C1) ou un substitut isolé."""
-    return any(
-        ord(c) < 0x20 or 0x7F <= ord(c) <= 0x9F or 0xD800 <= ord(c) <= 0xDFFF for c in texte
-    )
+    return _CONTROLE.search(texte) is not None
 
 
 def nettoyer_champ(texte: object, borne: int, racine_github: str | None = None) -> str:

@@ -316,6 +316,11 @@ def cadrer_etat_depot(
     def bloc(retenues: list[dict]) -> str:
         return tete + cadrer_message(identifiant, _corps_etat(etat, retenues), nonce)
 
+    toutes = list(reversed(decisions))
+    if etat or toutes:
+        complet = bloc(toutes)  # cas courant : tout tient, un seul cadrage (budget NFR1)
+        if unites_utf16(complet) <= borne:
+            return complet
     retenues: list[dict] = []
     rendu = bloc(retenues) if etat else ""
     if rendu and unites_utf16(rendu) > borne:
