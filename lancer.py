@@ -1,4 +1,4 @@
-"""Point d'entrée : `lancer.py scan | sync | appli | installer-reglages [arguments]`.
+"""Point d'entrée : `lancer.py scan | sync | appli | installer-reglages | rapport [arguments]`.
 
 Chaque sous-commande délègue à `main(argv) -> int` du `cli.py` de sa couche, importé
 dans la fonction (import tardif) : une sous-commande ne charge que sa couche.
@@ -39,11 +39,18 @@ def _installer_reglages(argv: list[str]) -> int:
     return main(argv)
 
 
+def _rapport(argv: list[str]) -> int:
+    from pilotage.rapport.cli import main
+
+    return main(argv)
+
+
 SOUS_COMMANDES: dict[str, Callable[[list[str]], int]] = {
     "scan": _scan,
     "sync": _sync,
     "appli": _appli,
     "installer-reglages": _installer_reglages,
+    "rapport": _rapport,
 }
 
 

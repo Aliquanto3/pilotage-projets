@@ -19,7 +19,7 @@ PILOTAGE_AUTORISE: dict[str, set[str]] = {
     "serveur": {"noyau", "chemins", "sync", "serveur"},
     "installation": {"noyau", "chemins", "installation"},
     "rapport": {"noyau", "chemins", "scan", "rapport"},
-    "lancer": {"noyau", "chemins", "scan", "sync", "serveur", "installation"},
+    "lancer": {"noyau", "chemins", "scan", "sync", "serveur", "installation", "rapport"},
 }
 # Paquets tiers permis (PyYAML : outils seulement).
 TIERS_AUTORISES: dict[str, set[str]] = {"scan": {"yaml"}, "sync": {"yaml"}, "serveur": {"yaml"}}

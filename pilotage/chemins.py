@@ -359,6 +359,26 @@ def tableau() -> Path:
     return racine_locale() / "TABLEAU.md"
 
 
+_SEMAINE_ISO = re.compile(r"[0-9]{4}-W[0-9]{2}")
+
+
+def rapports() -> Path:
+    """Dossier `rapports/` des rapports de la semaine (story 9.2), jamais copié par `sync`.
+
+    Racine locale (à côté de `attente/` et `donnees/`), pas la racine installée : `restaurer`
+    (`robocopy /MIR`) l'effacerait. Seule ligne à changer si l'emplacement change.
+    """
+    return racine_locale() / "rapports"
+
+
+def rapport_semaine(semaine: str) -> Path:
+    """Page `rapports/semaine-AAAA-Www.html` ; `semaine` hors de la forme `AAAA-Www` :
+    ValueError."""
+    if not isinstance(semaine, str) or _SEMAINE_ISO.fullmatch(semaine) is None:
+        raise ValueError("semaine ISO AAAA-Www attendue")
+    return rapports() / f"semaine-{semaine}.html"
+
+
 def port_serveur() -> int:
     """Port du serveur local : clé `port` de `config.json`, sinon `PORT_PAR_DEFAUT`."""
     port = lire_config().get("port")
