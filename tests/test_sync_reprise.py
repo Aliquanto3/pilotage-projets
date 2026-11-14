@@ -73,7 +73,7 @@ def stashs(donnees) -> list[str]:
 def test_etapes_dont_la_reprise_en_premier():
     noms = [nom for nom, _ in cycle.ETAPES]
     assert noms[0] == "reprise"
-    assert len(noms) == 12
+    assert len(noms) == 13
 
 
 @pytest.mark.parametrize("etape", [nom for nom, _ in cycle.ETAPES])

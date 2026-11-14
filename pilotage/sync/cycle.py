@@ -11,12 +11,13 @@ sortie git.
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from pilotage import chemins
 from pilotage.noyau import alertes as catalogue
 from pilotage.noyau import schemas
+from pilotage.rapport import generation, lecture
 from pilotage.scan import api as scan_api
 from pilotage.scan import inventaire
 from pilotage.sync import archivage, copie, depot, operations
@@ -29,6 +30,7 @@ ALERTE_IGNORES = catalogue.FICHIERS_IGNORES
 ALERTE_CONFLIT = catalogue.SYNC_CONFLIT
 ALERTE_PUSH = catalogue.SYNC_PUSH_REFUSE
 ALERTE_PROJETS = catalogue.PROJETS_NON_COMMITE
+ALERTE_RAPPORT = catalogue.RAPPORT_NON_GENERE
 CODE_FAIT, CODE_ECHEC = 0, 1
 
 Alerte = tuple[str, dict[str, str]]  # (code, params)
@@ -56,6 +58,7 @@ class Contexte:
     # Dépôt de données lu une fois au premier contrôle (story 7.1) : clone, pull et push visent
     # la valeur contrôlée, même si `config.json` change pendant le cycle.
     depot_donnees: str | None = None
+    rapport_echec: bool = False  # étape `rapport` en erreur : alerte, le cycle continue (9.3)
 
 
 def _maintenant() -> datetime:
@@ -103,6 +106,23 @@ def _copier_instantane(ctx: Contexte) -> None:
     relatifs, ignores = copie.copier_instantane(ctx.pc)
     ctx.relatifs += relatifs
     ctx.ignores += ignores
+
+
+def _rapport(ctx: Contexte) -> None:
+    """Rapport de la semaine ISO précédente (heure locale), écrit au premier cycle de la semaine
+    s'il manque (story 9.3, FR46) ; s'il existe, rien n'est lu ni recalculé. Une erreur (quelle
+    qu'elle soit) n'arrête pas le cycle : une alerte et une ligne de journal fixe, sans contenu."""
+    try:
+        instant = _maintenant()
+        locale = instant.astimezone(lecture.FuseauLocal())
+        precedente = generation.semaine_courante(locale - timedelta(days=7))
+        if chemins.rapport_semaine(precedente).exists():
+            return
+        generation.generer(precedente, instant)
+        generation.appliquer_retention()
+    except Exception as erreur:  # noqa: BLE001 (aucune erreur du rapport n'arrête le cycle)
+        ctx.rapport_echec = True
+        journaliser(f"rapport : non généré ({type(erreur).__name__})")
 
 
 def _commiter(ctx: Contexte) -> None:
@@ -169,6 +189,7 @@ ETAPES: list[tuple[str, Callable[[Contexte], None]]] = [
     ("operations", operations.appliquer),
     ("scan", _scanner),
     ("copie-instantane", _copier_instantane),
+    ("rapport", _rapport),
     ("commit", _commiter),
     ("controle-prive-envoi", _controle_prive),
     ("push", _pousser),
@@ -231,6 +252,7 @@ def executer(ctx: Contexte) -> int:
         journaliser("push refusé (non-fast-forward) : nouvel essai du cycle")
         ctx.relatifs, ctx.ignores, ctx.commit = [], 0, False
         ctx.projets_exclu = False
+        ctx.rapport_echec = False
         alertes, code, refuse = _jouer(ctx)
         if refuse:
             alertes = [alerte_abandon(ALERTE_PUSH, catalogue.MOTIF_NON_FAST_FORWARD)]
@@ -238,5 +260,7 @@ def executer(ctx: Contexte) -> int:
         alertes.append((ALERTE_IGNORES, {}))
     if ctx.projets_exclu:
         alertes.append((ALERTE_PROJETS, {}))
+    if ctx.rapport_echec:
+        alertes.append((ALERTE_RAPPORT, {}))
     ecrire_alertes(alertes)
     return code

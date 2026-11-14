@@ -165,7 +165,8 @@ def alertes_sync():
 def test_ordre_des_etapes():
     assert [nom for nom, _ in cycle.ETAPES] == [
         "reprise", "controle-prive", "pull", "archivage", "copie-attente", "operations", "scan",
-        "copie-instantane", "commit", "controle-prive-envoi", "push", "operations-nettoyage",
+        "copie-instantane", "rapport", "commit", "controle-prive-envoi", "push",
+        "operations-nettoyage",
     ]
 
 

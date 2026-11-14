@@ -18,8 +18,8 @@ désigné par `depot_donnees` (`config.json`).
 - `lancer.py` : sous-commandes, importe toutes les couches sauf hooks.
 
 Graphe des imports (vérifié par `tests/test_imports.py`) : tout importe `noyau` ; tout sauf
-`noyau` importe `chemins` ; `sync → scan`, `serveur → sync`, `rapport → scan` ; rien d'autre
-entre couches (seul `lancer.py` importe `rapport`).
+`noyau` importe `chemins` ; `sync → scan`, `sync → rapport`, `serveur → sync`, `rapport → scan` ; rien d'autre
+entre couches (hors `sync`, seul `lancer.py` importe `rapport`).
 
 ## Commandes
 - Lint : `uv run ruff check .`
