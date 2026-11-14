@@ -1,7 +1,7 @@
 """Tour de conversation : `Stop` (écrivain de fin de tour, AD-3) et `UserPromptSubmit`."""
 
 from pilotage import chemins
-from pilotage.hooks import _commun
+from pilotage.hooks import _commun, depot
 from pilotage.noyau import heuristique, marqueur, texte
 
 ESSAIS_STOP = 1
@@ -18,6 +18,7 @@ def fin_de_tour(payload: dict) -> None:
     attente précédente est effacée (`statut=active`). Note de reprise : filtrée et bornée, ou
     supprimée si suspecte ; sans marqueur de reprise, la note précédente reste. `transcript_path`
     n'est jamais lu. Retrouvé par l'id de session ; un état `finie` n'est pas touché.
+    Puis état du dépôt et décisions déclarés par marqueur (story 8.3, `depot.enregistrer`).
     """
     cle = _commun.session_seule(payload)
     if cle is None:
@@ -31,12 +32,14 @@ def fin_de_tour(payload: dict) -> None:
         payload.get("last_assistant_message")
     )
     racine = str(chemins.racine_github())
+    lus: list[dict] = []
     with _commun.verrou(session, ESSAIS_STOP):
         maintenant = _commun.maintenant()
         for chemin in etats:
             etat = _commun.lire_etat(chemin)
             if etat is None or etat["statut"] == "finie":
                 continue
+            lus.append({"projet": etat["projet"], "dossier": etat["dossier"]})
             etat["dernier_tour"] = maintenant
             if trouves.attente is None:
                 attente = etat.get("attente")
@@ -68,6 +71,7 @@ def fin_de_tour(payload: dict) -> None:
                 else:
                     etat.pop("reprise", None)
             _commun.ecrire_etat(chemin, etat)
+    depot.enregistrer(pc, session, lus, payload.get("cwd"), trouves, racine)
 
 
 def _poser_secours(etat: dict, detection, racine: str, maintenant: str) -> None:

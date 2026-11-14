@@ -147,13 +147,18 @@ def _prendre(chemin: Path) -> int | None:
         return None  # Windows : fichier en cours de suppression par un autre hook
 
 
-@contextmanager
-def verrou(session: str, essais: int = 1) -> Iterator[None]:
+def verrou(session: str, essais: int = 1):
     """Verrou de session : `essais` fois 20 ms au plus, sinon `VerrouOccupe`.
 
     Un verrou de plus de 2 s (hook tué) est supprimé puis repris.
     """
-    chemin = chemin_verrou(session)
+    return verrou_fichier(chemin_verrou(session), essais)
+
+
+@contextmanager
+def verrou_fichier(chemin: Path, essais: int = 1) -> Iterator[None]:
+    """Verrou par fichier `O_CREAT|O_EXCL` (mécanisme de `verrou`), sur un chemin déjà validé :
+    `essais` fois 20 ms au plus, sinon `VerrouOccupe` ; périmé au-delà de 2 s (story 8.3)."""
     chemin.parent.mkdir(parents=True, exist_ok=True)
     descripteur = None
     for _ in range(max(1, essais)):
@@ -166,7 +171,7 @@ def verrou(session: str, essais: int = 1) -> Iterator[None]:
         if descripteur is not None:
             break
     if descripteur is None:
-        raise VerrouOccupe("verrou de session tenu")
+        raise VerrouOccupe("verrou tenu")
     jeton = f"{os.getpid()} {os.urandom(8).hex()}".encode("ascii")
     try:
         os.write(descripteur, jeton)

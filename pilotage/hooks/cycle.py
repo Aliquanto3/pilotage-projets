@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from pilotage import chemins
-from pilotage.hooks import _commun, boite, note
+from pilotage.hooks import _commun, boite, depot, note
 from pilotage.noyau import cadrage
 
 ESSAIS_SESSION_START = 1
@@ -38,14 +38,14 @@ def lire_regle() -> str | None:
     return texte if texte.strip() else None
 
 
-def _nonce(interdit: str = "") -> str:
-    """Nonce imprévisible tiré à chaque injection, distinct de `interdit`.
+def _nonce(*interdits: str) -> str:
+    """Nonce imprévisible tiré à chaque injection, distinct de chacun des `interdits`.
 
     `secrets.token_hex` lit aussi `os.urandom`, mais son import coûte ~7 ms à `SessionStart`
     (NFR1)."""
     while True:
         nonce = os.urandom(16).hex()
-        if nonce != interdit:
+        if nonce not in interdits:
             return nonce
 
 
@@ -64,6 +64,22 @@ def _bloc_note(ctx, nonce: str) -> str:
             dernier_tour=retenue.dernier_tour, identifiant=identifiant,
         )
     except BaseException as erreur:  # noqa: BLE001 - règle et messages émis malgré tout
+        _commun.journaliser("SessionStart", erreur)
+        return ""
+
+
+def _bloc_etat(ctx, nonce: str, borne_unites: int) -> str:
+    """Bloc cadré de l'état du dépôt (story 8.3), dans `borne_unites` ; rien ou erreur : `""`."""
+    try:
+        retenu = depot.etat_du_depot(ctx)
+        if retenu is None:
+            return ""
+        identifiant = f"{datetime.now(UTC):%Y%m%dT%H%M%SZ}-{os.urandom(4).hex()}"
+        return cadrage.cadrer_etat_depot(
+            retenu.etat, retenu.decisions, nonce, pc=retenu.pc, ecrit=retenu.ecrit,
+            identifiant=identifiant, borne_unites=borne_unites,
+        )
+    except BaseException as erreur:  # noqa: BLE001 - règle, note et messages émis malgré tout
         _commun.journaliser("SessionStart", erreur)
         return ""
 
@@ -95,13 +111,14 @@ def _unites_avec_suite(blocs: list[str]) -> int:
 
 def injecter(ctx) -> None:
     """Seule écriture sur stdout des hooks : un objet `hookSpecificOutput.additionalContext`
-    (AD-13), règle du marqueur, dernière note de reprise, puis messages ; acquittements après
-    l'émission seulement.
+    (AD-13), règle du marqueur, dernière note de reprise, état du dépôt (story 8.3), puis
+    messages ; acquittements après l'émission seulement.
 
-    Plafond `BORNE_CONTEXTE` (unités UTF-16) ; priorité règle, note, messages : la note est omise
-    si elle ne tient pas après la règle, les messages reçoivent le reste et ceux qui ne tiennent
-    pas ne sont pas acquittés. Sans note : sortie de la story 5.3 ; sans note ni message : la
-    règle seule, à l'octet près (story 2.5). Rien à dire : rien.
+    Plafond `BORNE_CONTEXTE` (unités UTF-16) ; priorité règle, note, état, messages : la note est
+    omise si elle ne tient pas après la règle, l'état s'il ne tient pas après elles, les messages
+    reçoivent le reste et ceux qui ne tiennent pas ne sont pas acquittés. Sans note ni état :
+    sortie de la story 5.3 ; sans note, état ni message : la règle seule, à l'octet près
+    (story 2.5). Rien à dire : rien.
     """
     regle = lire_regle()
     blocs = [regle] if regle else []
@@ -111,8 +128,12 @@ def injecter(ctx) -> None:
         BORNE_CONTEXTE
     ):
         blocs.append(bloc_note)
+    nonce_etat = _nonce(nonce_note)
+    bloc_etat = _bloc_etat(ctx, nonce_etat, BORNE_CONTEXTE - _unites_avec_suite(blocs))
+    if bloc_etat:
+        blocs.append(bloc_etat)
     reste = BORNE_CONTEXTE - _unites_avec_suite(blocs)
-    messages, retenus = _bloc_messages(ctx, _nonce(nonce_note), reste)
+    messages, retenus = _bloc_messages(ctx, _nonce(nonce_note, nonce_etat), reste)
     if messages:
         blocs.append(messages)
     if not blocs:

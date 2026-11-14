@@ -17,6 +17,15 @@ Pour laisser une note de reprise (où tu en es, ce qui reste), termine aussi par
 <!-- pilotage: reprise="Étape 3 sur 5 faite ; reste à écrire les tests" -->
 
 - `reprise` est une phrase de 300 caractères au plus, sans guillemet `"` à l'intérieur. Sans nouveau marqueur de reprise, la précédente est conservée.
-- Les deux genres peuvent figurer dans un même marqueur, ou dans deux marqueurs sur les deux dernières lignes.
+- Un marqueur par genre, chacun sur sa ligne, dans les dernières lignes du message.
+
+Hors run BMAD, à la fin d'une étape de travail, déclare aussi l'état du dépôt et chaque décision prise :
+
+<!-- pilotage: prochaine="Écrire les tests de X" | branche=feat/x | blocages="aucun" | explore="docs/a.md" | a_explorer="module Y" -->
+<!-- pilotage: decision="Garder SQLite" | pourquoi="Un seul poste" -->
+
+- `reprise` dit où en est la session, l'état où en est le dépôt : sections fixes, `prochaine` obligatoire, 300 caractères (`branche` 100). Un état remplace le précédent en entier ; `etat=clos` le vide.
+- Décisions : 3 par message au plus, 300 caractères ; journal en ajout seul, daté par le pilotage.
+- Chemins relatifs, rien de secret. Si le dépôt a `_bmad-output/implementation-artifacts/run-autonome.md`, il fait foi : l'état n'est pas exigé.
 
 N'écris un marqueur que pour de vrai : ne finis pas un message sur un marqueur cité en exemple, il serait pris pour réel. Si tu n'attends rien, n'écris pas de marqueur d'attente.

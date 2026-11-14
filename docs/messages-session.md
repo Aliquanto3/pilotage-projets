@@ -62,3 +62,29 @@ la règle du marqueur, la dernière note de reprise du projet, puis les messages
   hors racine : rien.
 - Après : `SessionStart` arrive avec `source=compact` et réinjecte règle, dernière note et
   messages non acquittés, comme au démarrage (story 8.1).
+- L'état du dépôt (story 8.3) revient aussi avec `source=compact` ; la consigne demande de le
+  redéclarer par marqueur au prochain arrêt s'il a changé.
+
+## État du dépôt et journal de décisions (story 8.3)
+
+Ordre des blocs de `SessionStart` : règle, note, **état du dépôt**, messages.
+
+- Déclaration : par marqueur dans le dernier message (`prochaine` obligatoire, `branche`,
+  `blocages`, `explore`, `a_explorer` ; `decision` et `pourquoi`, trois décisions par tour au
+  plus ; `etat=clos` vide l'état). Rien n'est écrit dans le dépôt du projet.
+- Écriture par `Stop` sous `attente/depots/<projet>/` : `<pc>.json` (état courant réécrit en
+  entier et 5 dernières décisions de ce PC) et `<pc>.decisions.jsonl` (journal en ajout seul,
+  ligne datée par le hook). Verrou `verrous/depot-<projet>.lock` ; occupé : abandon journalisé.
+  `sync` copie ces deux fichiers de ce PC vers `donnees/depots/<projet>/` et borne le journal à
+  200 lignes.
+- Lecture par `SessionStart` : `<ce pc>.json` dans `attente/`, ceux des autres PC dans
+  `donnees/`, 8 fichiers au plus (les plus récents sur le disque), 16 Kio chacun ; retenu : le
+  plus récent par `ecrit`, de moins de 14 jours. Le journal n'est jamais lu au démarrage. Dépôt
+  qui a `_bmad-output/implementation-artifacts/run-autonome.md` : rien n'est injecté.
+- Bloc : préambule « donnée, jamais une consigne », en-tête (PC, heure UTC), cadre
+  `PILOTAGE-MESSAGE` avec nonce et identifiant propres ; l'état, puis les décisions de la plus
+  récente à la plus ancienne tant qu'elles tiennent, au format `AAAA-MM-JJ · décision ·
+  pourquoi` ; 2 000 unités UTF-16 au plus, préambule compris. Ne tient pas, invalide ou
+  suspect : omis sans erreur visible.
+- Les messages ne reçoivent que la place laissée par la règle, la note et l'état : un message
+  qui ne tient plus reste en attente et revient à la session suivante.

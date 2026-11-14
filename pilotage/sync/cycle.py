@@ -86,6 +86,9 @@ def _copier_attente(ctx: Contexte) -> None:
     relatifs, ignores = copie.copier_acquittements(ctx.pc)  # story 5.3
     ctx.relatifs += relatifs
     ctx.ignores += ignores
+    relatifs, ignores = copie.copier_depots(ctx.pc, str(ctx.racine_github))  # story 8.3
+    ctx.relatifs += relatifs
+    ctx.ignores += ignores
 
 
 def _scanner(ctx: Contexte) -> None:

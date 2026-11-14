@@ -206,7 +206,7 @@ def _exemples() -> list[str]:
 
 def test_exemples_de_la_regle_reconnus_par_le_parseur():
     exemples = _exemples()
-    assert len(exemples) == 2
+    assert len(exemples) == 4  # attente, reprise, puis état et décision (story 8.3)
     attente = marqueur.lire(exemples[0])
     assert attente.attente == ("choix", "Choisir entre la voie A et la voie B")
     assert attente.reprise is None
@@ -247,3 +247,35 @@ def test_aucun_claude_md_ne_contient_la_regle():
         contenu = fichier.read_text(encoding="utf-8")
         for phrase in phrases:
             assert phrase not in contenu, f"{fichier} contient la règle ({phrase!r})"
+
+
+# --- Story 8.3 : convention de l'état du dépôt et du journal de décisions ------------------
+
+
+def test_regle_convention_etat_et_decisions():
+    texte = REGLE.read_text(encoding="utf-8")
+    assert len(texte.encode("utf-8")) <= 3300
+    debut = texte.index("Hors run BMAD")
+    fin = texte.index("N'écris un marqueur que pour de vrai")
+    convention = "\n".join(
+        ligne for ligne in texte[debut:fin].splitlines() if not ligne.startswith("<!--")
+    )
+    assert len(convention.encode("utf-8")) <= 600
+    for attendu in (
+        "`prochaine` obligatoire", "sections fixes", "remplace le précédent en entier",
+        "`etat=clos`", "ajout seul", "daté par le pilotage", "3 par message au plus",
+        "_bmad-output/implementation-artifacts/run-autonome.md", "il fait foi",
+        "`reprise` dit où en est la session, l'état où en est le dépôt", "Chemins relatifs",
+        "rien de secret", "Un marqueur par genre, chacun sur sa ligne",
+    ):
+        assert attendu in texte, attendu
+
+
+def test_exemples_de_la_regle_lus_comme_attendu():
+    texte = REGLE.read_text(encoding="utf-8")
+    exemples = [ligne for ligne in texte.splitlines() if ligne.startswith("<!-- pilotage:")]
+    trouves = marqueur.lire("\n".join(exemples))
+    assert trouves.etat == {"prochaine": "Écrire les tests de X", "branche": "feat/x",
+                            "blocages": "aucun", "explore": "docs/a.md", "a_explorer": "module Y"}
+    assert trouves.decisions == (("Garder SQLite", "Un seul poste"),)
+    assert trouves.reprise and trouves.attente

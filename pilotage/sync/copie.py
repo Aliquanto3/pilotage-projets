@@ -8,6 +8,8 @@
 - Instantané `instantanes/<pc>.json` : validé par le schéma `instantane`, copié tel quel.
 - Acquittements `boite/<projet>/<id>.lu.<pc>` de ce PC (story 5.3) : validés par le schéma
   `acquittement` (`id`, `projet`, `pc` égaux au chemin), copiés tels quels.
+- État du dépôt `depots/<projet>/<pc>.json` et journal `<pc>.decisions.jsonl` (story 8.3) :
+  filtre rejoué, validés (`etat_depot`, `decision` ligne à ligne), journal borné à 200 lignes.
 
 Rend les chemins relatifs (`/`) des fichiers copiés, pour le `git add` par liste.
 """
@@ -18,6 +20,7 @@ from pathlib import Path
 
 from pilotage import chemins
 from pilotage.noyau import ids, schemas, texte
+from pilotage.noyau.schemas import etat_depot
 
 
 def filtrer_session(objet: dict, racine_github: str) -> dict:
@@ -170,4 +173,128 @@ def copier_acquittements(pc: str) -> tuple[list[str], int]:
                 continue
             _ecrire_si_change(cible, contenu)
             copies.append(f"boite/{projet}/{nom}")
+    return copies, ignores
+
+
+# --- État du dépôt et journal de décisions (story 8.3) ----------------------------------------
+
+MAX_LIGNES_JOURNAL = 200
+BORNE_ETAT_DEPOT_OCTETS = 16 * 1024
+SUFFIXE_JOURNAL = ".decisions.jsonl"
+
+
+def filtrer_etat_depot(objet: dict, racine_github: str) -> dict:
+    """Rejoue le filtre sur l'état et les décisions d'un fichier `<pc>.json` (copie modifiée)."""
+    propre = dict(objet)
+    if "etat" in propre:
+        etat = etat_depot.filtrer_etat(propre["etat"], racine_github)
+        if etat is None:
+            del propre["etat"]
+        else:
+            propre["etat"] = etat
+    if isinstance(propre.get("decisions"), list):
+        propre["decisions"] = [
+            ligne for ligne in (
+                etat_depot.filtrer_decision(d, racine_github) for d in propre["decisions"]
+            ) if ligne is not None
+        ]
+    return propre
+
+
+def lignes_du_journal(contenu: str, racine_github: str) -> list[dict]:
+    """Lignes valides (schéma `decision`) et refiltrées du journal ; une ligne tronquée ou
+    invalide est ignorée seule ; les `MAX_LIGNES_JOURNAL` dernières."""
+    lignes = []
+    for brute in contenu.split("\n"):
+        if not brute.strip():
+            continue
+        try:
+            ligne = etat_depot.filtrer_decision(json.loads(brute), racine_github)
+            if ligne is None:
+                continue
+            schemas.valider("decision", ligne)
+        except (ValueError, RecursionError):
+            continue
+        lignes.append(ligne)
+    return lignes[-MAX_LIGNES_JOURNAL:]
+
+
+def _borner_journal(attente: Path, projet: str, nom: str) -> None:
+    """Rotation de `attente/depots/<projet>/<nom>` aux `MAX_LIGNES_JOURNAL` dernières lignes,
+    sous le verrou `verrous/depot-<projet>.lock` que prend aussi `Stop` (un essai : occupé,
+    la rotation attend le cycle suivant). Lignes gardées telles quelles."""
+    verrou = chemins.joindre_sous(attente, "verrous", f"depot-{projet}.lock")
+    verrou.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        descripteur = os.open(verrou, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except OSError:
+        return
+    try:
+        source = chemins.joindre_sous(attente, "depots", projet, nom)
+        with open(source, "rb") as fichier:
+            lignes = fichier.read().split(b"\n")
+        if lignes and not lignes[-1]:
+            lignes.pop()
+        if len(lignes) > MAX_LIGNES_JOURNAL:
+            gardees = b"\n".join(lignes[-MAX_LIGNES_JOURNAL:]) + b"\n"
+            chemins.ecrire_atomique(source, gardees.decode("utf-8", errors="replace"))
+    except (OSError, ValueError):
+        pass  # rotation au cycle suivant
+    finally:
+        os.close(descripteur)
+        try:
+            os.unlink(verrou)
+        except OSError:
+            pass
+
+
+def copier_depots(pc: str, racine_github: str) -> tuple[list[str], int]:
+    """Copie `attente/depots/<projet>/<pc>.json` et `<pc>.decisions.jsonl` de `pc` vers
+    `donnees/depots/<projet>/` ; rend (relatifs copiés, nombre de fichiers ignorés).
+
+    Filtre rejoué, validation par schéma (`etat_depot`, `decision` ligne à ligne), identité
+    `(projet, pc)` égale au chemin ; journal borné à `MAX_LIGNES_JOURNAL` lignes (dans
+    `attente/` aussi). Fichiers d'un autre PC : non lus. Lien symbolique ou jonction : ignoré."""
+    attente, donnees = chemins.attente(), chemins.donnees()
+    copies: list[str] = []
+    ignores = 0
+    for projet in _sous_dossiers(attente / "depots"):
+        try:
+            ids.valider_projet(projet)
+            dossier = chemins.joindre_sous(attente, "depots", projet)
+        except ids.ErreurId:
+            ignores += 1
+            continue
+        for nom in _fichiers(dossier):
+            if nom not in (f"{pc}.json", f"{pc}{SUFFIXE_JOURNAL}"):
+                continue  # autre PC, ou `.tmp` d'une écriture en cours
+            try:
+                if not (sans_lien(attente, "depots", projet, nom)
+                        and sans_lien(donnees, "depots", projet, nom)):
+                    raise ValueError("lien symbolique ou jonction")
+                if nom.endswith(SUFFIXE_JOURNAL):
+                    _borner_journal(attente, projet, nom)
+                    brut = (dossier / nom).read_text(encoding="utf-8", errors="replace")
+                    lignes = lignes_du_journal(brut, racine_github)
+                    if not lignes:
+                        raise ValueError("journal sans ligne valide")
+                    contenu = "".join(json.dumps(x, ensure_ascii=False) + "\n" for x in lignes)
+                else:
+                    brut = (dossier / nom).read_bytes()
+                    if len(brut) > BORNE_ETAT_DEPOT_OCTETS:
+                        raise ValueError("état du dépôt trop long")
+                    objet = json.loads(brut.decode("utf-8"))
+                    if not isinstance(objet, dict):
+                        raise ValueError("objet attendu")
+                    objet = filtrer_etat_depot(objet, racine_github)
+                    schemas.valider("etat_depot", objet)
+                    if (objet["projet"], objet["pc"]) != (projet, pc):
+                        raise ValueError("chemin et contenu divergent")
+                    contenu = json.dumps(objet, ensure_ascii=False, indent=2) + "\n"
+                cible = chemins.joindre_sous(donnees, "depots", projet, nom)
+            except (OSError, ValueError, RecursionError):
+                ignores += 1
+                continue
+            _ecrire_si_change(cible, contenu)
+            copies.append(f"depots/{projet}/{nom}")
     return copies, ignores

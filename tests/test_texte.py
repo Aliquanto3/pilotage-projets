@@ -217,3 +217,40 @@ def test_nom_affiche_admis(brut, attendu):
 ])
 def test_nom_affiche_refuse(brut):
     assert texte.nom_affiche(brut) == ""
+
+
+# --- Story 8.3 : champ d'une ligne --------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "absolu",
+    ["C:\\x", "c:/x", "voir D:\\a", "\\\\srv\\p", "/etc/x", "  /etc", "~/x", "~"],
+)
+def test_champ_chemin_absolu_refuse(absolu):
+    assert texte.est_chemin_absolu(absolu)
+    assert texte.nettoyer_champ(absolu, 300, "C:/GitHub") == ""
+
+
+@pytest.mark.parametrize(
+    "sain", ["docs/a.md", "https://x.org/a", "a/b ~c", "ratio 3:1", "{{RACINE_GITHUB}}/a"]
+)
+def test_champ_relatif_garde(sain):
+    assert not texte.est_chemin_absolu(sain)
+    assert texte.nettoyer_champ(f" {sain} ", 300) == sain
+
+
+def test_champ_racine_normalisee_puis_gardee():
+    assert texte.nettoyer_champ("C:\\GitHub\\projet\\a.md", 300, "C:\\GitHub") == (
+        "{{RACINE_GITHUB}}\\projet\\a.md"
+    )
+
+
+@pytest.mark.parametrize("valeur", ["a\nb", "a\rb", "a\x00", "a\x7f", "a\x85", "a\ud800", 3, None])
+def test_champ_controle_ou_non_texte_refuse(valeur):
+    assert texte.nettoyer_champ(valeur, 300) == ""
+
+
+def test_champ_secret_et_borne():
+    assert texte.nettoyer_champ("clé ghp_abc", 300) == ""
+    assert texte.nettoyer_champ("x" * 400, 300) == "x" * 300
+    assert texte.nettoyer_champ("   ", 300) == ""
