@@ -91,7 +91,7 @@ development_status:
   6-1-jeu-étiqueté-et-validation-de-l-heuristique-mixte: in-progress
   6-2-banc-de-latence-sur-le-portable-cible-mixte: backlog
   6-3-fiabilité-sur-50-sessions-réelles-humaine: backlog
-  6-4-recette-de-l-appli-mixte: backlog
+  6-4-recette-de-l-appli-mixte: ready-for-dev
   6-5-release-v1-0-0-et-index-du-portfolio: backlog
   epic-6-retrospective: optional
 
@@ -100,3 +100,9 @@ development_status:
   7-2-nom-de-l-utilisateur-et-action-attend-utilisateur: done
   7-3-dépôt-publiable-v0-3-0: done
   epic-7-retrospective: optional
+
+  epic-8: in-progress
+  8-1-dernière-note-de-reprise-réinjectée-au-démarrage: done
+  8-2-hook-precompact-et-consigne-de-compaction: backlog
+  8-3-fichier-d-état-par-dépôt-et-journal-de-décisions: backlog
+  epic-8-retrospective: optional
