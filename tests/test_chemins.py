@@ -268,3 +268,24 @@ def test_attente_de_secours_ne_lit_pas_la_config(sans_racine):
     _ecrire_config(sans_racine, json.dumps({"attente": "relatif"}))
     locale = sans_racine / "AppData" / "Local" / "pilotage-projets"
     assert chemins.attente_de_secours() == locale / "attente"
+
+
+def test_rapports_sous_la_racine_locale(racine_locale_isolee):
+    assert chemins.rapports() == racine_locale_isolee / "rapports"
+    assert chemins.rapport_semaine("2026-W46") == (
+        racine_locale_isolee / "rapports" / "semaine-2026-W46.html"
+    )
+    for voisin in (chemins.attente(), chemins.donnees(), chemins.racine_installation()):
+        assert not chemins.rapports().is_relative_to(voisin)
+
+
+def test_rapports_par_defaut_hors_installation(sans_racine):
+    locale = sans_racine / "AppData" / "Local" / "pilotage-projets"
+    assert chemins.rapports() == locale / "rapports"
+    assert not chemins.rapports().is_relative_to(chemins.racine_installation())
+
+
+@pytest.mark.parametrize("semaine", ["2026-46", "2026-w46", "../x", "2026-W46/..", "", None, 46])
+def test_rapport_semaine_forme_refusee(semaine):
+    with pytest.raises(ValueError):
+        chemins.rapport_semaine(semaine)

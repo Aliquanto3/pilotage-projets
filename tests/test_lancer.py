@@ -7,8 +7,8 @@ import lancer
 from tests.test_imports import RACINE_DEPOT
 
 
-def test_quatre_sous_commandes():
-    assert list(lancer.SOUS_COMMANDES) == ["scan", "sync", "appli", "installer-reglages"]
+def test_cinq_sous_commandes():
+    assert list(lancer.SOUS_COMMANDES) == ["scan", "sync", "appli", "installer-reglages", "rapport"]
 
 
 def test_appli_option_inconnue_rend_2(capsys):
@@ -39,7 +39,10 @@ def test_execution_en_script():
     assert "usage: lancer.py sync" in resultat.stderr
 
 
-@pytest.mark.parametrize("argv", [["--help"], ["sync", "--help"], ["installer-reglages", "--help"]])
+@pytest.mark.parametrize(
+    "argv",
+    [["--help"], ["sync", "--help"], ["installer-reglages", "--help"], ["rapport", "--help"]],
+)
 def test_execution_isolee_depuis_un_autre_dossier(tmp_path, argv):
     """Story 3.5 : la tâche planifiée lance `pythonw -I lancer.py sync` (pas de dossier du script
     dans sys.path sous -I) : `pilotage` doit rester importable, quel que soit le dossier courant."""

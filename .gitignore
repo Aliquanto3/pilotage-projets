@@ -17,3 +17,6 @@ mesures-couts/
 /_bmad/
 /.claude/skills/
 /.claude/settings.local.json
+
+# Rapports de la semaine (racine locale), jamais suivis
+/rapports/
