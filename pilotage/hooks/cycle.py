@@ -2,16 +2,19 @@
 
 import json
 import os
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pilotage import chemins
-from pilotage.hooks import _commun, boite
+from pilotage.hooks import _commun, boite, note
 from pilotage.noyau import cadrage
 
 ESSAIS_SESSION_START = 1
 ESSAIS_SESSION_END = 3  # M1 : SessionEnd (et UserPromptSubmit) réessaient trois fois 20 ms
 NOM_REGLE = "regle-marqueur.md"
 BORNE_REGLE = 8192  # octets ; la règle livrée en fait ~2 Ko
+# Plafond de `additionalContext`, en unités UTF-16 (longueur mesurée par Claude Code), story 8.1.
+BORNE_CONTEXTE = 10_000
 
 
 def lire_regle() -> str | None:
@@ -35,33 +38,86 @@ def lire_regle() -> str | None:
     return texte if texte.strip() else None
 
 
-def _bloc_messages(ctx) -> tuple[str, list[str]]:
+def _nonce(interdit: str = "") -> str:
+    """Nonce imprévisible tiré à chaque injection, distinct de `interdit`.
+
+    `secrets.token_hex` lit aussi `os.urandom`, mais son import coûte ~7 ms à `SessionStart`
+    (NFR1)."""
+    while True:
+        nonce = os.urandom(16).hex()
+        if nonce != interdit:
+            return nonce
+
+
+def _bloc_note(ctx, nonce: str) -> str:
+    """Bloc cadré de la dernière note de reprise (story 8.1) ; aucune ou erreur : `""`.
+
+    Identifiant propre au bloc (`AAAAMMJJTHHMMSSZ-<8 hex>`, heure UTC courante) et nonce propre :
+    ni l'un ni l'autre ne vient des messages."""
+    try:
+        retenue = note.derniere_note(ctx)
+        if retenue is None:
+            return ""
+        identifiant = f"{datetime.now(UTC):%Y%m%dT%H%M%SZ}-{os.urandom(4).hex()}"
+        return cadrage.cadrer_note(
+            retenue.texte, nonce, pc=retenue.pc, session=retenue.session,
+            dernier_tour=retenue.dernier_tour, identifiant=identifiant,
+        )
+    except BaseException as erreur:  # noqa: BLE001 - règle et messages émis malgré tout
+        _commun.journaliser("SessionStart", erreur)
+        return ""
+
+
+def _bloc_messages(ctx, nonce: str, borne_unites: int) -> tuple[str, list[str]]:
     """Bloc cadré des messages à remettre et leurs ids ; erreur journalisée : aucun (AD-13)."""
     try:
-        # Nonce imprévisible tiré à chaque injection (`secrets.token_hex` lit aussi
-        # `os.urandom`, mais son import coûte ~7 ms à `SessionStart`, NFR1).
         return cadrage.cadrer_messages(
-            boite.a_injecter(ctx), os.urandom(16).hex(), chemins.utilisateur()
+            boite.a_injecter(ctx), nonce, chemins.utilisateur(), borne_unites=borne_unites
         )
     except BaseException as erreur:  # noqa: BLE001 - la règle doit être émise malgré tout
         _commun.journaliser("SessionStart", erreur)
         return "", []
 
 
+def _assembler(blocs: list[str]) -> str:
+    """Blocs séparés par une ligne vide ; un bloc seul est rendu tel quel (story 2.5)."""
+    if len(blocs) == 1:
+        return blocs[0]
+    return "\n\n".join(bloc.rstrip("\n") for bloc in blocs)
+
+
+def _unites_avec_suite(blocs: list[str]) -> int:
+    """Unités UTF-16 occupées par `blocs` suivis d'un bloc de plus (séparateur compris)."""
+    if not blocs:
+        return 0
+    return cadrage.unites_utf16("\n\n".join(bloc.rstrip("\n") for bloc in blocs) + "\n\n")
+
+
 def injecter(ctx) -> None:
     """Seule écriture sur stdout des hooks : un objet `hookSpecificOutput.additionalContext`
-    (AD-13), règle du marqueur puis messages ; acquittements après l'émission seulement.
+    (AD-13), règle du marqueur, dernière note de reprise, puis messages ; acquittements après
+    l'émission seulement.
 
-    Sans message : la règle seule, à l'octet près (story 2.5). Ni règle ni message : rien.
+    Plafond `BORNE_CONTEXTE` (unités UTF-16) ; priorité règle, note, messages : la note est omise
+    si elle ne tient pas après la règle, les messages reçoivent le reste et ceux qui ne tiennent
+    pas ne sont pas acquittés. Sans note : sortie de la story 5.3 ; sans note ni message : la
+    règle seule, à l'octet près (story 2.5). Rien à dire : rien.
     """
     regle = lire_regle()
-    messages, retenus = _bloc_messages(ctx)
-    if regle and messages:
-        contexte = regle.rstrip("\n") + "\n\n" + messages
-    else:
-        contexte = regle or messages
-    if not contexte:
+    blocs = [regle] if regle else []
+    nonce_note = _nonce()
+    bloc_note = _bloc_note(ctx, nonce_note)
+    if bloc_note and _unites_avec_suite(blocs) + cadrage.unites_utf16(bloc_note) <= (
+        BORNE_CONTEXTE
+    ):
+        blocs.append(bloc_note)
+    reste = BORNE_CONTEXTE - _unites_avec_suite(blocs)
+    messages, retenus = _bloc_messages(ctx, _nonce(nonce_note), reste)
+    if messages:
+        blocs.append(messages)
+    if not blocs:
         return
+    contexte = _assembler(blocs)
     sortie = {
         "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": contexte}
     }

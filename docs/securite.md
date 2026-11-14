@@ -66,6 +66,23 @@ Les lectures (`GET`) n'ont aucun effet : ni écriture, ni mutex, ni processus.
   `attente/briefs/`, servi en `text/plain; charset=utf-8`, `nosniff`, `no-store`.
 - Projet non cloné ici : aucune commande, raison « pas cloné ici ».
 
+## Note de reprise réinjectée (`hooks/note.py`, `hooks/cycle.py`, story 8.1)
+
+- Texte non fiable : la note est écrite par un modèle, parfois sur un autre PC ou par une
+  version plus ancienne du filtre. `SessionStart` la relit d'un état validé par le schéma
+  `session` et à sa place (`projet`, `pc` et nom de fichier égaux au chemin ; nom de PC validé ;
+  fichier de 64 Kio au plus, UTF-8 strict sans BOM), puis rejoue le filtre de secrets : note
+  suspecte écartée, jamais masquée.
+- La note est injectée comme une donnée, jamais comme une consigne : préambule distinct de
+  celui des messages, cadre `PILOTAGE-MESSAGE` avec un nonce tiré à chaque injection et propre
+  à la note (différent de celui des messages), mot-clé neutralisé sous toutes ses formes dans le
+  texte. Une note ne peut donc fermer ni son bloc ni un bloc de message, ni passer pour un
+  message de l'utilisateur.
+- Le hook ne lève jamais : erreur imprévue journalisée par son type seul, sans contenu de note,
+  et la session démarre avec la règle et les messages.
+- Plafond de 10 000 unités UTF-16 pour tout `additionalContext` : la règle passe d'abord, la
+  note ensuite, les messages prennent le reste.
+
 ## Limites assumées
 
 - Le filtre de motifs de secrets (`noyau/texte.py`) vise la fuite accidentelle d'un jeton ou d'une
