@@ -54,7 +54,7 @@ donnent une forme supposée d'après la documentation de Claude Code.
 Confirmé le 2026-11-14, Claude Code 2.1.325, Windows 11 : `claude -p --model haiku
 --setting-sources "" --settings <fichier temporaire>` (réglages de l'utilisateur non chargés),
 dossier de travail temporaire, hooks de capture propres à l'essai. Sous Git Bash, `/compact` en
-argument est réécrit en chemin Windows (`C:/Program Files/Git/compact`) : poser
+argument est réécrit en chemin Windows (`<dossier de Git>/compact`) : poser
 `MSYS_NO_PATHCONV=1`.
 - `claude -p --resume <id> "/compact garde le mot ZEBRE"` est accepté et compacte la session.
   Ordre observé : `SessionStart` `source=resume`, `PreCompact`, `SessionStart` `source=compact`,

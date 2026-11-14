@@ -38,8 +38,12 @@ pilotage).
 Ordre : le runtime d'abord, les réglages ensuite. `installer-reglages` refuse d'écrire
 `settings.json` (code 1, « runtime incomplet … scripts absents ») si un script du modèle
 `hooks-pilotage.json` manque sous la racine installée : Python sortirait avec le code 2, qui
-bloque une compaction (`PreCompact`, story 8.2). Un runtime restauré plus ancien que
-`settings.json` reste possible si `sync.ps1` le copie après coup : rejouer `restaurer`.
+bloque une compaction (`PreCompact`, story 8.2). `restaurer` suit déjà cet ordre (copie du
+runtime à l'étape 1, fusion à l'étape 3), et le modèle lu est celui du runtime installé : un
+runtime ancien sans `pre_compact.py` n'ajoute pas d'entrée `PreCompact`. La garde ne joue qu'à
+l'installation : supprimer `~/.claude/pilotage/` sans retirer ses hooks de `settings.json`
+bloquerait les compactions suivantes (retirer les hooks d'abord, ou poser `desactive`, qui
+laisse les scripts en place).
 
 `settings.json` n'est écrit qu'à la fin, atomiquement : uv absent ou une étape en échec laisse
 `settings.json` inchangé, avec un message et un code non nul. Deux `restaurer` de suite donnent
