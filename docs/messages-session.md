@@ -30,7 +30,12 @@ la règle du marqueur, la dernière note de reprise du projet, puis les messages
   après `resume`, `/clear` ou `/compact`). Ce PC se lit dans `attente/etat/<projet>/<pc>/`, les
   autres PC dans `donnees/etat/<projet>/<pc>/`. Ordre : `dernier_tour`, sinon `debut`, puis
   l'id de session. 20 fichiers au plus sont ouverts, les plus récents sur le disque ; un état
-  invalide, de plus de 64 Kio, hors de sa place ou sans note est ignoré.
+  invalide, de plus de 64 Kio, hors de sa place ou sans note est ignoré. Limite connue : le
+  `mtime` d'un état de `donnees/` est l'heure du `pull` qui l'a apporté, pas celle de son
+  dernier tour ; si un même `pull` apporte plus de 20 états du projet (premier clone, PC resté
+  éteint plusieurs jours), les 20 ouverts sont pris au hasard parmi eux et une note plus
+  ancienne peut être injectée (son en-tête en donne l'heure). Pas de lecture au-delà de 20
+  fichiers (NFR1).
 - Filtre de secrets rejoué à la lecture (`texte.nettoyer`, comme `sync`) : une note suspecte
   est écartée au profit de la suivante ; aucune note valide, aucun bloc.
 - Cadrage : préambule « Dernière note de reprise », qui présente le bloc comme une donnée sur

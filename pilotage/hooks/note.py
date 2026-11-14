@@ -9,6 +9,10 @@ de secrets (`texte.nettoyer`, comme `sync`) : suspecte, on passe à la suivante.
 
 Ne lève jamais : toute erreur imprévue est journalisée (type seul, jamais la note) et rend
 `None`. Les archives (`attente/archive/`) ne sont pas lues.
+
+Limite connue : le `mtime` d'un état de `donnees/` est l'heure du `pull` qui l'a apporté. Si un
+même `pull` en apporte plus de `MAX_ETATS_LUS` (premier clone, longue absence), le choix parmi
+eux est arbitraire et une note plus ancienne peut l'emporter ; son en-tête en donne l'heure.
 """
 
 import json
