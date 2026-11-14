@@ -35,6 +35,12 @@ Sans runtime publié mais avec un runtime déjà installé (`~/.claude/pilotage/
 locaux restent en place. Sans runtime du tout, `settings.json` est celui du dépôt (sans hooks du
 pilotage).
 
+Ordre : le runtime d'abord, les réglages ensuite. `installer-reglages` refuse d'écrire
+`settings.json` (code 1, « runtime incomplet … scripts absents ») si un script du modèle
+`hooks-pilotage.json` manque sous la racine installée : Python sortirait avec le code 2, qui
+bloque une compaction (`PreCompact`, story 8.2). Un runtime restauré plus ancien que
+`settings.json` reste possible si `sync.ps1` le copie après coup : rejouer `restaurer`.
+
 `settings.json` n'est écrit qu'à la fin, atomiquement : uv absent ou une étape en échec laisse
 `settings.json` inchangé, avec un message et un code non nul. Deux `restaurer` de suite donnent
 les mêmes octets.

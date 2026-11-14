@@ -17,7 +17,7 @@ from test_hooks_session import (
     sortie_regle,
 )
 
-from pilotage.hooks import cycle
+from pilotage.hooks import compaction, cycle
 from pilotage.noyau import marqueur
 
 REGLE = DEPOT / "regle-marqueur.md"
@@ -161,8 +161,10 @@ def test_les_points_d_entree_connus_sont_enumeres():
     assert {"SessionStart", "SessionEnd", "UserPromptSubmit", "Stop"} <= set(_points_d_entree())
 
 
-def test_seul_session_start_ecrit_sur_stdout(racine):  # noqa: F811
+def test_seuls_session_start_et_pre_compact_ecrivent_sur_stdout(racine):  # noqa: F811
+    """`PreCompact` rend exactement sa consigne (story 8.2) ; tout autre hook reste muet."""
     payloads = {
+        "PreCompact": "PreCompact-manuel",
         "UserPromptSubmit": "UserPromptSubmit-saisie",
         "Stop": "Stop-session",
         "SessionEnd": "SessionEnd-other",
@@ -181,7 +183,12 @@ def test_seul_session_start_ecrit_sur_stdout(racine):  # noqa: F811
         payload = _payload(payloads[evenement], racine, session)
         if evenement == "Stop":
             payload["last_assistant_message"] = marqueur_attente
-        _vide(_lancer(hook, payload), hook.name)
+        resultat = _lancer(hook, payload)
+        if evenement == "PreCompact":
+            attendu = (0, compaction.CONSIGNE.encode("utf-8"), b"")
+            assert (resultat.returncode, resultat.stdout, resultat.stderr) == attendu
+        else:
+            _vide(resultat, hook.name)
         _vide(_lancer(hook, b"{pas du json"), hook.name)
         _vide(_lancer(hook, _payload(payloads[evenement], racine, agent_id="a1")), hook.name)
     assert inconnus == [], f"payload de test à ajouter pour {inconnus}"

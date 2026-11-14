@@ -108,3 +108,13 @@ def test_cas_a_confirmer_attendus():
     for source in ("clear", "compact"):
         objet = json.loads(_texte(DOSSIER / f"SessionStart-{source}-a-confirmer.json"))
         assert objet["source"] == source
+
+
+def test_fixture_pre_compact_observee():
+    """Story 8.2 : `PreCompact` de `/compact <texte>` (Claude Code 2.1.325), sans `agent_id`."""
+    objet = json.loads(_texte(DOSSIER / "PreCompact-manuel.json"))
+    assert list(objet) == [
+        "session_id", "transcript_path", "cwd", "prompt_id", "hook_event_name", "trigger",
+        "custom_instructions",
+    ]
+    assert (objet["trigger"], objet["custom_instructions"]) == ("manual", "garde le mot ZEBRE")

@@ -10,6 +10,7 @@ SessionStart et SessionEnd lancent pour de vrai la synchro détachée (story 3.6
 acquittés à chaque SessionStart (acquittements effacés entre deux appels, hors mesure).
 `--etats N` (story 8.1, défaut 20) : N états de session avec note de reprise, d'autres PC, dans
 `donnees/etat/bench/` ; SessionStart en relit `MAX_ETATS_LUS` et injecte la plus récente.
+PreCompact (story 8.2) : consigne de compaction en texte brut sur stdout, jamais de JSON.
 """
 
 import argparse
@@ -41,6 +42,7 @@ HOOKS = {
             "message": "Claude needs your permission to use Bash",
         },
     ),
+    "pre_compact": ("PreCompact", {"trigger": "auto", "custom_instructions": None}),
     "session_end": ("SessionEnd", {"reason": "other"}),
 }
 BUDGET_P95_MS = 100.0
@@ -183,10 +185,15 @@ def mesurer(
             [python, "-I", "-S", str(chemin)], input=donnees, capture_output=True, env=env
         )
         durees.append((time.perf_counter() - debut) * 1000)
-        # Seul SessionStart émet (la règle du marqueur) ; tout autre hook reste muet.
-        attendu = hook == "session_start"
+        # SessionStart émet du JSON (règle, note, messages), PreCompact sa consigne en texte brut
+        # (story 8.2) ; tout autre hook reste muet.
+        attendu = hook in ("session_start", "pre_compact")
         if resultat.returncode != 0 or bool(resultat.stdout) != attendu:
             raise RuntimeError(f"{hook} : code {resultat.returncode} ou sortie parasite")
+        if hook == "pre_compact" and resultat.stdout.lstrip().startswith(b"{"):
+            raise RuntimeError(f"{hook} : JSON sur stdout, consigne en texte brut attendue")
+        if hook == "session_start" and not resultat.stdout.startswith(b"{"):
+            raise RuntimeError(f"{hook} : JSON attendu sur stdout")
         acquittes = sorted(p.name.split(".")[0] for p in boite.glob("bench/*.lu.*"))
         # Délimiteurs de début en tête de ligne (fin de ligne échappée dans le JSON), hors
         # préambule.

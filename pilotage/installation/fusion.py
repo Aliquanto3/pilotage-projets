@@ -22,7 +22,9 @@ from pilotage import chemins
 
 JETON_PYTHON = "{{PYTHON_PILOTAGE}}"
 JETON_RACINE = "{{RACINE_PILOTAGE}}"
-EVENEMENTS = ("SessionStart", "UserPromptSubmit", "Stop", "Notification", "SessionEnd")
+EVENEMENTS = (
+    "SessionStart", "UserPromptSubmit", "Stop", "PreCompact", "Notification", "SessionEnd",
+)
 NOM_MODELE = "hooks-pilotage.json"
 SUFFIXE_COPIE = ".avant-pilotage-"
 BOM = b"\xef\xbb\xbf"
@@ -202,6 +204,25 @@ def controler_modele(modele: object) -> None:
             raise ErreurInstallation(f"modèle : entrée exec invalide pour {evenement}")
 
 
+def controler_scripts(modele: dict, racine: str) -> None:
+    """Chaque script du modèle existe sous `racine` ; sinon lève `ErreurInstallation`.
+
+    Python qui ne trouve pas son script sort avec le code 2, qui bloque une compaction
+    (`PreCompact`) : `settings.json` n'est donc écrit qu'une fois le runtime en place.
+    """
+    racine = valider_chemin("racine", racine)
+    absents = [
+        groupes[0]["hooks"][0]["args"][2].replace(JETON_RACINE + "/", "", 1)
+        for groupes in modele["hooks"].values()
+    ]
+    absents = [s for s in absents if not os.path.isfile(os.path.join(racine, s))]
+    if absents:
+        raise ErreurInstallation(
+            f"runtime incomplet sous {racine!r}, scripts absents : {', '.join(absents)}"
+            " (installer le runtime d'abord, les réglages ensuite)"
+        )
+
+
 def valider_chemin(nom: str, chemin: str) -> str:
     """Chemin absolu, sans guillemet ni saut de ligne ni jeton ; rendu avec des `/`."""
     if not chemin or any(c in chemin for c in "\"\r\n") or "{{" in chemin or "}}" in chemin:
@@ -353,6 +374,7 @@ def installer(
     else:
         settings = lire_json(cible) if avant is not None else None
     apres = serialiser(fusionner(settings, contenu_modele, python, racine))
+    controler_scripts(contenu_modele, racine)  # modèle contrôlé par `fusionner`
     if apres == avant:
         return False, None
     copie = None

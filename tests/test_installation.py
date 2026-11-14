@@ -19,6 +19,8 @@ PYTHON = "C:/Users/Moi/.claude/pilotage/.venv/Scripts/python.exe"
 ANTISLASH = "C:\\Users\\Moi\\.claude\\pilotage"
 PY_REEL = Path(sys.executable).as_posix()  # interpréteur existant : `installer` le contrôle
 HEURE = datetime(2026, 11, 6, 9, 5, 7)
+# Racine réelle qui porte tous les scripts du modèle : `installer` les contrôle (story 8.2).
+RUNTIME = RACINE_DEPOT.as_posix()
 
 
 def _modele() -> dict:
@@ -68,8 +70,17 @@ def _ecrire(chemin: Path, objet: dict) -> None:
     chemin.write_bytes(fusion.serialiser(objet))
 
 
+def _runtime(racine: Path, sauf: str = "") -> None:
+    """Scripts du modèle posés sous `racine` (vides), sauf `sauf`."""
+    for groupes in _modele()["hooks"].values():
+        relatif = groupes[0]["hooks"][0]["args"][2].replace("{{RACINE_PILOTAGE}}/", "")
+        if relatif != sauf:
+            (racine / relatif).parent.mkdir(parents=True, exist_ok=True)
+            (racine / relatif).write_bytes(b"")
+
+
 def _installer(cible: Path, **kw):
-    return fusion.installer(cible, PY_REEL, RACINE, maintenant=lambda: HEURE, **kw)
+    return fusion.installer(cible, PY_REEL, RUNTIME, maintenant=lambda: HEURE, **kw)
 
 
 # --- Modèle `hooks-pilotage.json` -------------------------------------------------------------
@@ -252,7 +263,7 @@ def test_fusion_retire_ajoute_et_conserve_le_reste():
     hooks = resultat["hooks"]
     # SubagentStop ne portait que du pilotage : retiré ; les nouveaux événements à la fin.
     assert list(hooks) == ["PreToolUse", "Stop", "SessionStart", "UserPromptSubmit",
-                           "Notification", "SessionEnd"]
+                           "PreCompact", "Notification", "SessionEnd"]
     assert hooks["PreToolUse"] == [{"matcher": "Bash", "hooks": [_tiers("controle.sh")]}]
     assert hooks["Stop"] == [
         {"hooks": [_tiers("notifier.exe")]},
@@ -273,9 +284,9 @@ def test_fusion_ne_modifie_pas_l_entree():
 
 
 def test_fusion_garde_groupe_vide_d_origine():
-    settings = {"hooks": {"PreCompact": [], "Stop": [{"matcher": "x", "hooks": []}]}}
+    settings = {"hooks": {"PostCompact": [], "Stop": [{"matcher": "x", "hooks": []}]}}
     hooks = fusion.fusionner(settings, _modele(), PYTHON, RACINE)["hooks"]
-    assert hooks["PreCompact"] == []
+    assert hooks["PostCompact"] == []
     assert hooks["Stop"][0] == {"matcher": "x", "hooks": []}
 
 
@@ -334,7 +345,7 @@ def test_hooks_mal_formes_refuses(settings):
 def test_absent_cree_avec_les_seuls_hooks(tmp_path):
     cible = tmp_path / "claude" / "settings.json"
     assert _installer(cible) == (True, None)
-    attendu = fusion.fusionner(None, _modele(), PY_REEL, RACINE)
+    attendu = fusion.fusionner(None, _modele(), PY_REEL, RUNTIME)
     assert list(attendu) == ["hooks"]
     assert cible.read_bytes() == fusion.serialiser(attendu)
     assert list(cible.parent.iterdir()) == [cible]
@@ -457,6 +468,7 @@ def test_commande_par_defaut(racine_locale_isolee, capsys):
     interpreteur = fusion.python_par_defaut(chemins.racine_installation())
     interpreteur.parent.mkdir(parents=True)
     interpreteur.write_bytes(b"")
+    _runtime(chemins.racine_installation())
     assert lancer.main(["installer-reglages"]) == 0
     cible = racine_locale_isolee / "claude" / "settings.json"
     assert capsys.readouterr().out == f"{cible} : créé\n"
@@ -471,12 +483,12 @@ def test_commande_par_defaut(racine_locale_isolee, capsys):
 def test_commande_options_et_mise_a_jour(tmp_path, capsys):
     cible = tmp_path / "s.json"
     _ecrire(cible, _settings_realiste())
-    code = cli.main(["--settings", str(cible), "--racine", RACINE, "--python", PY_REEL])
+    code = cli.main(["--settings", str(cible), "--racine", RUNTIME, "--python", PY_REEL])
     assert code == 0
     sortie = capsys.readouterr().out
     assert sortie.startswith(f"{cible} : mis à jour (copie : s.json.avant-pilotage-")
     assert json.loads(cible.read_text(encoding="utf-8")) == fusion.fusionner(
-        _settings_realiste(), _modele(), PY_REEL, RACINE)
+        _settings_realiste(), _modele(), PY_REEL, RUNTIME)
 
 
 def test_commande_fichier_illisible_rend_1(tmp_path, capsys):
@@ -640,7 +652,7 @@ def test_commande_restaurer_config_puis_fusion(tmp_path, capsys):
     _ecrire(depot, {"model": "opus"})
     cible = tmp_path / "settings.json"
     config = tmp_path / "config.json"
-    args = ["--settings", str(cible), "--depuis", str(depot), "--racine", RACINE,
+    args = ["--settings", str(cible), "--depuis", str(depot), "--racine", RUNTIME,
             "--python", PY_REEL, "--config", str(config), "--racine-github", "D:/GitHub"]
     assert cli.main(args) == 0
     assert capsys.readouterr().out == f"{config} : écrit\n{cible} : créé\n"
@@ -679,7 +691,7 @@ def test_python_par_defaut_lu_dans_config(monkeypatch, tmp_path, capsys):
     assert config.is_relative_to(tmp_path)
     _ecrire(config, {"python": PY_REEL})
     cible = tmp_path / "settings.json"
-    assert cli.main(["--settings", str(cible), "--racine", RACINE]) == 0
+    assert cli.main(["--settings", str(cible), "--racine", RUNTIME]) == 0
     stop = json.loads(cible.read_text(encoding="utf-8"))["hooks"]["Stop"][0]["hooks"][0]
     assert stop["command"] == PY_REEL
 
@@ -740,7 +752,7 @@ def test_ecrire_config_bom_accepte_reecrit_sans_bom(tmp_path):
 
 def _commande_config(tmp_path, *identite):
     config = tmp_path / "config.json"
-    args = ["--settings", str(tmp_path / "settings.json"), "--racine", RACINE, "--python",
+    args = ["--settings", str(tmp_path / "settings.json"), "--racine", RUNTIME, "--python",
             PY_REEL, "--config", str(config), "--racine-github", "D:/G", *identite]
     return config, cli.main(args)
 
@@ -822,3 +834,66 @@ def test_preparer_config_identite_limites(tmp_path):
     assert objet["utilisateur"] == "u" * 64
     with pytest.raises(fusion.ErreurInstallation):
         fusion.preparer_config(config, "C:/p/python.exe", "C:/G", depot_donnees="a/" + "n" * 101)
+
+
+# --- Story 8.2 : `PreCompact`, mise à niveau, runtime incomplet --------------------------------
+
+
+def test_modele_evenements_dans_l_ordre():
+    assert fusion.EVENEMENTS == (
+        "SessionStart", "UserPromptSubmit", "Stop", "PreCompact", "Notification", "SessionEnd",
+    )
+    assert list(_modele()["hooks"]) == list(fusion.EVENEMENTS)
+    entree = _modele()["hooks"]["PreCompact"][0]["hooks"][0]
+    assert entree["args"] == ["-I", "-S", "{{RACINE_PILOTAGE}}/pilotage/hooks/pre_compact.py"]
+    assert (RACINE_DEPOT / "pilotage" / "hooks" / "pre_compact.py").is_file()
+
+
+def test_mise_a_niveau_d_une_installation_sans_pre_compact(tmp_path):
+    ancien = _modele()
+    del ancien["hooks"]["PreCompact"]
+    tiers = {"matcher": "manual", "hooks": [_tiers("sauver-contexte.sh")]}
+    base = {"model": "opus", "hooks": {"PreCompact": [tiers],
+                                        "PreToolUse": [{"hooks": [_tiers("controle.sh")]}]}}
+    installee = {"model": "opus", "hooks": {**base["hooks"]}}
+    for evenement, groupes in ancien["hooks"].items():  # installation antérieure, à la main
+        script = groupes[0]["hooks"][0]["args"][2].replace("{{RACINE_PILOTAGE}}", RUNTIME)
+        installee["hooks"][evenement] = [{"hooks": [_entree(script, PY_REEL)]}]
+    cible = tmp_path / "settings.json"
+    _ecrire(cible, installee)
+    ecrit, copie = _installer(cible)
+    assert ecrit and copie is not None
+    hooks = json.loads(cible.read_text(encoding="utf-8"))["hooks"]
+    pre_compact = _entree(RUNTIME + "/pilotage/hooks/pre_compact.py", PY_REEL)
+    assert hooks["PreCompact"] == [tiers, {"hooks": [pre_compact]}]
+    assert hooks["PreToolUse"] == [{"hooks": [_tiers("controle.sh")]}]
+    assert json.dumps(hooks).count("pre_compact.py") == 1
+    for evenement in fusion.EVENEMENTS:
+        pilotes = [e for g in hooks[evenement] for e in g["hooks"]
+                   if fusion.est_du_pilotage(e, RUNTIME)]
+        assert len(pilotes) == 1, evenement
+    octets = cible.read_bytes()
+    assert _installer(cible) == (False, None)
+    assert cible.read_bytes() == octets
+
+
+def test_script_absent_refuse_sans_ecrire(tmp_path, capsys):
+    runtime = tmp_path / "runtime"
+    _runtime(runtime, sauf="pilotage/hooks/pre_compact.py")
+    cible = tmp_path / "settings.json"
+    _ecrire(cible, {"model": "opus"})
+    avant = cible.read_bytes()
+    with pytest.raises(fusion.ErreurInstallation,
+                       match=r"scripts absents : pilotage/hooks/pre_compact\.py \(installer"):
+        fusion.installer(cible, PY_REEL, runtime.as_posix())
+    assert cible.read_bytes() == avant
+    assert set(tmp_path.iterdir()) == {runtime, cible}  # ni copie ni `.tmp`
+    code = cli.main(["--settings", str(cible), "--racine", runtime.as_posix(), "--python",
+                     PY_REEL])
+    assert code == 1
+    err = capsys.readouterr().err
+    assert "runtime incomplet" in err and "pre_compact.py" in err
+    assert err.endswith("rien n'a été écrit\n")
+    assert cible.read_bytes() == avant
+    _runtime(runtime)  # runtime complété : les réglages s'écrivent
+    assert fusion.installer(cible, PY_REEL, runtime.as_posix())[0]

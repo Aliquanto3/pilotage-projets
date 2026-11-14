@@ -6,6 +6,7 @@ chemins en jetons (`{{RACINE_GITHUB}}`, `{{HOME}}`, `{{SLUG_PROJET}}`). Compte r
 
 ## Fixtures observées
 Capturées par un vrai Claude Code (`claude -p`), puis assainies. Aucun marquage.
+`PreCompact-manuel.json` : Claude Code 2.1.325, `/compact garde le mot ZEBRE` (story 8.2).
 
 ## Fixtures « à confirmer »
 Cas non observés, construits sur la forme des payloads réels (champs communs `session_id`,
@@ -19,7 +20,7 @@ marques, toutes deux obligatoires (vérifiées par `tests/test_fixtures_payloads
 | `Notification-permission-a-confirmer.json` | stories 2.4, 5.3 | champs `message`, `title`, `notification_type` |
 | `Notification-askuserquestion-a-confirmer.json` | stories 2.4, 2.5, 5.3 | `Notification` ou `PreToolUse` ; type et texte. `notification_type: elicitation_dialog` est inventé, rien ne l'atteste |
 | `SessionStart-clear-a-confirmer.json` | story 2.5 | `source` vaut-il `clear` |
-| `SessionStart-compact-a-confirmer.json` | story 2.5 | `source` vaut-il `compact` |
+| `SessionStart-compact-a-confirmer.json` | story 2.5 | `source` vaut-il `compact` (observé par la story 8.2 en `-p`, voir `docs/capture-payloads.md` ; nom gardé) |
 
 Une fois confirmée, la fixture perd son suffixe et son champ `_statut`.
 
