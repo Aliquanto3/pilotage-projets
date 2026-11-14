@@ -1,12 +1,15 @@
 """Banc de latence des hooks (AD-1) : N appels par événement, p50 et p95 hors démarrage à froid.
 
-Usage : `uv run python outils/bench_hooks.py [--python CHEMIN] [--appels 50] [--messages 3]`.
+Usage : `uv run python outils/bench_hooks.py [--python CHEMIN] [--appels 50] [--messages 3]
+[--etats 20]`.
 Tout se passe sous une racine temporaire (`PILOTAGE_RACINE_LOCALE`) : aucun vrai dossier touché.
 Le hook est lancé comme Claude Code le lance : `<python> -I -S <hook>`, payload sur stdin.
 SessionStart et SessionEnd lancent pour de vrai la synchro détachée (story 3.6), vers un
 `lancer.py` factice qui ne fait que se signaler : le `Popen` est compté dans la mesure.
 `--messages N` (story 5.3, défaut 3) : N messages en attente dans `donnees/boite/bench/`, remis et
 acquittés à chaque SessionStart (acquittements effacés entre deux appels, hors mesure).
+`--etats N` (story 8.1, défaut 20) : N états de session avec note de reprise, d'autres PC, dans
+`donnees/etat/bench/` ; SessionStart en relit `MAX_ETATS_LUS` et injecte la plus récente.
 """
 
 import argparse
@@ -43,6 +46,9 @@ HOOKS = {
 BUDGET_P95_MS = 100.0
 DELAI_LANCEMENTS_S = 60.0
 MESSAGES_PAR_DEFAUT = 3
+ETATS_PAR_DEFAUT = 20
+PCS_AUTRES = ("bench-a", "bench-b")
+NOTE_BANC = "Reprendre la story 8.1 : relire la spec puis lancer les tests ciblés. " * 4
 TEXTE_MESSAGE = "Message de banc : relis la story et reprends à l'étape 3. " * 30  # ~1,7 Ko
 LANCEUR_FACTICE = (
     "import os, uuid\n"
@@ -75,6 +81,31 @@ def deposer_messages(racine: Path, nombre: int) -> None:
         (boite / f"{identifiant}.json").write_text(json.dumps(objet), encoding="utf-8")
 
 
+def deposer_etats(racine: Path, nombre: int) -> None:
+    """`nombre` états valides (schéma `session`) avec note, répartis entre deux autres PC dans
+    `donnees/etat/bench/<pc>/` ; dates distinctes, la plus récente en dernier.
+
+    `mtime` posé à un jour dans le futur : ces états restent les plus récents sur le disque
+    malgré ceux que le banc crée, donc chaque SessionStart ouvre et valide les mêmes `nombre`
+    fichiers (pire cas jusqu'à `MAX_ETATS_LUS`) et trouve une note."""
+    futur = time.time() + 86_400
+    for i in range(nombre):
+        pc = PCS_AUTRES[i % len(PCS_AUTRES)]
+        dossier = racine / "donnees" / "etat" / "bench" / pc
+        dossier.mkdir(parents=True, exist_ok=True)
+        session = str(uuid.UUID(int=i + 1))
+        heure = f"2026-11-{1 + i // 24:02d}T{i % 24:02d}:00:00Z"
+        objet = {
+            "schema": 1, "projet": "bench", "pc": pc, "session": session, "pid": 1000 + i,
+            "pid_cree": None, "dossier": "bench", "branche": "main", "debut": heure,
+            "dernier_tour": heure, "statut": "finie", "fin": heure,
+            "reprise": NOTE_BANC[:300],
+        }
+        chemin = dossier / f"{session}.json"
+        chemin.write_text(json.dumps(objet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        os.utime(chemin, (futur + i, futur + i))
+
+
 def deposer_operations_autres(racine: Path, nombre: int) -> None:
     """`nombre` opérations `deposer_message` d'un autre projet dans `attente/operations/` (le
     hook doit les écarter sans les parser ni les journaliser)."""
@@ -89,9 +120,9 @@ def deposer_operations_autres(racine: Path, nombre: int) -> None:
         )
 
 
-def preparer(racine: Path, messages: int = 0, operations: int = 0) -> Path:
-    """Dépôt factice `bench` sous `<racine>/github`, table des dossiers et `messages` messages en
-    attente ; rend son dossier."""
+def preparer(racine: Path, messages: int = 0, operations: int = 0, etats: int = 0) -> Path:
+    """Dépôt factice `bench` sous `<racine>/github`, table des dossiers, `messages` messages en
+    attente et `etats` états d'autres PC avec note ; rend son dossier."""
     dossier = racine / "github" / "bench"
     (dossier / ".git").mkdir(parents=True)
     (dossier / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
@@ -103,6 +134,7 @@ def preparer(racine: Path, messages: int = 0, operations: int = 0) -> Path:
     (installation / "lancer.py").write_text(LANCEUR_FACTICE, encoding="utf-8")
     deposer_messages(racine, messages)
     deposer_operations_autres(racine, operations)
+    deposer_etats(racine, etats)
     return dossier
 
 
@@ -125,7 +157,8 @@ def attendre_lancements(racine: Path, attendus: int) -> int:
 
 
 def mesurer(
-    python: str, hook: str, sessions: list[str], racine: Path, dossier: Path, messages: int = 0
+    python: str, hook: str, sessions: list[str], racine: Path, dossier: Path, messages: int = 0,
+    etats: int = 0,
 ) -> list[float]:
     """Durées (ms) d'un lancement du hook par session (`session_end` clôt celles du début)."""
     evenement, champs = HOOKS[hook]
@@ -136,6 +169,7 @@ def mesurer(
     chemin = DEPOT / "pilotage" / "hooks" / f"{hook}.py"
     durees: list[float] = []
     remis = ids_messages(min(messages, 3)) if hook == "session_start" else []
+    avec_note = hook == "session_start" and etats > 0
     boite = racine / "attente" / "boite"
     for session in sessions:
         shutil.rmtree(boite, ignore_errors=True)  # hors mesure : les messages restent en attente
@@ -157,8 +191,11 @@ def mesurer(
         # Délimiteurs de début en tête de ligne (fin de ligne échappée dans le JSON), hors
         # préambule.
         debuts = resultat.stdout.count(rb"\n<<<PILOTAGE-MESSAGE-DEBUT id=")
-        if acquittes != remis or debuts != len(remis):
+        note = "## Dernière note de reprise".encode() in resultat.stdout
+        if acquittes != remis or debuts != len(remis) + avec_note:
             raise RuntimeError(f"{hook} : messages non remis ou non acquittés")
+        if note != avec_note:
+            raise RuntimeError(f"{hook} : note de reprise absente ou inattendue")
     return durees
 
 
@@ -176,21 +213,29 @@ def main(argv: list[str] | None = None) -> int:
         "--operations-autres", type=int, default=0,
         help="opérations deposer_message d'un autre projet en attente (écartées par le hook)",
     )
+    parser.add_argument(
+        "--etats", type=int, default=ETATS_PAR_DEFAUT,
+        help="états d'autres PC avec note de reprise (SessionStart injecte la plus récente)",
+    )
     args = parser.parse_args(argv)
     if args.appels < 2:
         parser.error("--appels : au moins 2 (le premier appel est écarté)")
     if args.messages < 0:
         parser.error("--messages : 0 ou plus")
+    if not 0 <= args.etats <= 24 * 28:
+        parser.error(f"--etats : de 0 à {24 * 28}")
     if not 0 <= args.operations_autres < 3600:
         parser.error("--operations-autres : de 0 à 3599")
     depasse = False
     temporaires = tempfile.TemporaryDirectory(prefix="bench-hooks-", ignore_cleanup_errors=True)
     with temporaires as temporaire:
         racine = Path(temporaire)
-        dossier = preparer(racine, args.messages, args.operations_autres)
+        dossier = preparer(racine, args.messages, args.operations_autres, args.etats)
         sessions = [str(uuid.uuid4()) for _ in range(args.appels)]
         for hook in HOOKS:
-            chaud = mesurer(args.python, hook, sessions, racine, dossier, args.messages)[1:]
+            chaud = mesurer(
+                args.python, hook, sessions, racine, dossier, args.messages, args.etats
+            )[1:]
             p50, p95 = centile(chaud, 50), centile(chaud, 95)
             depasse |= p95 > BUDGET_P95_MS
             print(f"{hook} : p50 {p50:.1f} ms, p95 {p95:.1f} ms ({len(chaud)} appels à chaud)")

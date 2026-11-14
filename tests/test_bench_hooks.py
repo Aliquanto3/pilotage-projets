@@ -63,3 +63,45 @@ def test_passage_reel_avec_operations_d_autres_projets(capsys):
     sortie = capsys.readouterr().out
     assert code in (0, 2)
     assert "erreurs journalisées" not in sortie
+
+
+# --- Story 8.1 : scénario « 20 états et 3 messages » ------------------------------------------
+
+
+def test_scenario_vingt_etats_et_trois_messages(capsys):
+    """SessionStart relit les 20 états, injecte la note la plus récente et les 3 messages (le
+    banc vérifie la note et les acquittements à chaque appel, sinon il lève)."""
+    code = bench.main(["--appels", "2", "--etats", "20", "--messages", "3"])
+    sortie = capsys.readouterr().out
+    assert code in (0, 2)
+    assert "session_start : p50 " in sortie
+    assert "erreurs journalisées" not in sortie
+
+
+def test_defaut_vingt_etats():
+    assert bench.ETATS_PAR_DEFAUT == 20
+
+
+@pytest.mark.parametrize("etats", ["-1", str(24 * 28 + 1)])
+def test_etats_hors_bornes_refuses(etats):
+    with pytest.raises(SystemExit):
+        bench.main(["--appels", "2", "--etats", etats])
+
+
+def test_etats_du_banc_valides_et_plus_recents(tmp_path):
+    import json
+    import os
+    import time
+
+    from pilotage.noyau import schemas
+
+    bench.deposer_etats(tmp_path, 20)
+    fichiers = sorted((tmp_path / "donnees" / "etat" / "bench").rglob("*.json"))
+    assert len(fichiers) == 20
+    assert {f.parent.name for f in fichiers} == set(bench.PCS_AUTRES)
+    for fichier in fichiers:
+        objet = json.loads(fichier.read_text(encoding="utf-8"))
+        schemas.valider("session", objet)
+        assert (objet["pc"], f"{objet['session']}.json") == (fichier.parent.name, fichier.name)
+        assert objet["reprise"] and len(objet["reprise"]) <= 300
+        assert os.stat(fichier).st_mtime > time.time()  # restent les plus récents

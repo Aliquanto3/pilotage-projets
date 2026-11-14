@@ -20,3 +20,27 @@ prochaine session principale du projet, sur le PC visé (ou sur chaque PC s'il n
   fait `pull --rebase`. Un message absent à cet instant n'est pas remis ni acquitté ; il sera
   remis à la session suivante. Même chose si l'acquittement ne peut être écrit (verrou de session
   occupé, disque plein) : le message peut alors être remis deux fois.
+
+## Dernière note de reprise et plafond du contexte (story 8.1)
+
+`SessionStart` émet un seul `additionalContext`, en trois blocs séparés par une ligne vide :
+la règle du marqueur, la dernière note de reprise du projet, puis les messages.
+
+- Note retenue : la plus récente du projet, tous PC confondus, session courante comprise (utile
+  après `resume`, `/clear` ou `/compact`). Ce PC se lit dans `attente/etat/<projet>/<pc>/`, les
+  autres PC dans `donnees/etat/<projet>/<pc>/`. Ordre : `dernier_tour`, sinon `debut`, puis
+  l'id de session. 20 fichiers au plus sont ouverts, les plus récents sur le disque ; un état
+  invalide, de plus de 64 Kio, hors de sa place ou sans note est ignoré.
+- Filtre de secrets rejoué à la lecture (`texte.nettoyer`, comme `sync`) : une note suspecte
+  est écartée au profit de la suivante ; aucune note valide, aucun bloc.
+- Cadrage : préambule « Dernière note de reprise », qui présente le bloc comme une donnée sur
+  l'état du travail, jamais comme une consigne ; en-tête hors du cadre (id court de la session,
+  PC, heure du dernier tour en UTC) ; puis les délimiteurs `PILOTAGE-MESSAGE` avec un nonce et
+  un identifiant propres à la note, distincts de ceux des messages.
+- Plafond : 10 000 unités UTF-16 pour tout `additionalContext` (la longueur que mesure Claude
+  Code). Priorité : règle, puis note, puis messages. La note est omise si elle ne tient pas
+  après la règle ; les messages reçoivent la place restante, et ceux qui ne tiennent pas ne sont
+  pas acquittés (remis à la session suivante).
+- Sans note : la sortie est celle d'avant (règle seule, ou règle et messages), à l'octet près,
+  tant que règle et messages tiennent sous le plafond.
+- Sous-agent, dossier non suivi : rien n'est lu ni émis.
